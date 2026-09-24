@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>כלים לשולחן</title>
+  <meta name="theme-color" content="#16121c">
+  <link rel="icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/style.css">
+</head>
+<body>
+  <main class="wrap center" id="app"></main>
+  <script type="module">
+    import { icon } from '/shared/icons.js';
+    const tools = [
+      { href: '/session-zero', icon: 'd20', title: 'סשן אפס', sub: 'שאלון קצר לפני המשחק הראשון' },
+    ];
+    document.getElementById('app').innerHTML = `
+      <div class="hero-icon">${icon('dragon')}</div>
+      <h1 class="q-title">כלים לשולחן</h1>
+      <p class="lead">כלים קטנים לקבוצת ה-D&amp;D שלנו.</p>
+      <div class="grid one">${tools.map(t => `
+        <a class="opt" href="${t.href}">
+          <span class="opt-ic">${icon(t.icon)}</span>
+          <span class="opt-text"><span class="opt-label">${t.title}</span><span class="opt-sub">${t.sub}</span></span>
+        </a>`).join('')}
+      </div>`;
+  </script>
+</body>
+</html>
