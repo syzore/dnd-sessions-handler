@@ -98,7 +98,9 @@ function serveFile(res, file) {
 }
 
 // ---------- API ----------
+// A "session" is the group: every tool hangs its data off the same code and DM key.
 async function api(req, res, parts, url) {
+  if (parts[1] === 'sched') return schedApi(req, res, parts, url);
   // parts: ['api', 'sz', 'sessions', code?, sub?, id?]
   if (parts[1] !== 'sz' || parts[2] !== 'sessions') return json(res, 404, { error: 'not found' });
 
@@ -184,6 +186,114 @@ async function api(req, res, parts, url) {
   return json(res, 404, { error: 'not found' });
 }
 
+// ---------- scheduling ----------
+const VOTES = ['yes', 'maybe', 'no'];
+const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+
+function schedule(s) {
+  return (s.schedule ||= { dates: [], quorum: 0, locked: null, people: {} });
+}
+
+// Keep only well-formed {key: 'yes'|'maybe'|'no'} entries
+function cleanVotes(obj, validKey) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj || {})) if (validKey(k) && VOTES.includes(v)) out[k] = v;
+  return out;
+}
+
+async function schedApi(req, res, parts, url) {
+  // parts: ['api', 'sched', code, sub?, id?]
+  const s = db.sessions[String(parts[2] || '').toUpperCase()];
+  if (!s) return json(res, 404, { error: 'הקבוצה לא נמצאה' });
+  const sc = schedule(s);
+  const isAdmin = url.searchParams.get('key') === s.adminKey;
+
+  // GET /api/sched/:code?pid=&key=
+  if (req.method === 'GET' && parts.length === 3) {
+    const pid = url.searchParams.get('pid');
+    const people = Object.entries(sc.people)
+      .filter(([, p]) => p.name)
+      .sort((a, b) => a[1].createdAt - b[1].createdAt)
+      .map(([id, p]) => ({ name: p.name, me: id === pid, weekly: p.weekly, votes: p.votes }));
+    return json(res, 200, {
+      code: s.code,
+      title: s.title,
+      isAdmin,
+      dates: sc.dates,
+      quorum: sc.quorum,
+      locked: sc.locked,
+      people,
+      me: sc.people[pid] || s.responses[pid] ? { name: sc.people[pid]?.name || s.responses[pid]?.name } : null,
+    });
+  }
+
+  // PUT /api/sched/:code/me/:pid  {name?, weekly?, votes?}
+  if (req.method === 'PUT' && parts[3] === 'me' && parts[4]) {
+    const body = await readBody(req);
+    const pid = clean(parts[4], 64);
+    const prev = sc.people[pid] || { createdAt: Date.now(), weekly: {}, votes: {} };
+    sc.people[pid] = {
+      ...prev,
+      name: clean(body.name ?? prev.name, 40),
+      weekly: body.weekly ? cleanVotes(body.weekly, (k) => /^[0-6]$/.test(k)) : prev.weekly,
+      votes: body.votes ? cleanVotes(body.votes, isDate) : prev.votes,
+      updatedAt: Date.now(),
+    };
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  // PUT /api/sched/:code/admin?key=  {dates?, quorum?, locked?}
+  if (req.method === 'PUT' && parts[3] === 'admin') {
+    if (!isAdmin) return json(res, 403, { error: 'רק ה-DM' });
+    const body = await readBody(req);
+    if (Array.isArray(body.dates)) sc.dates = [...new Set(body.dates.filter(isDate))].sort().slice(0, 60);
+    if (body.quorum !== undefined) sc.quorum = Math.max(0, Math.min(20, parseInt(body.quorum, 10) || 0));
+    if (body.locked !== undefined) {
+      const l = body.locked;
+      sc.locked =
+        l && isDate(l.date)
+          ? { date: l.date, time: /^\d{2}:\d{2}$/.test(l.time) ? l.time : '20:00', place: clean(l.place, 120) }
+          : null;
+    }
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  // GET /api/sched/:code/event.ics
+  if (req.method === 'GET' && parts[3] === 'event.ics') {
+    if (!sc.locked) return json(res, 404, { error: 'עוד לא נקבע מועד' });
+    const { date, time, place } = sc.locked;
+    const start = date.replaceAll('-', '') + 'T' + time.replace(':', '') + '00';
+    const end = new Date(`${date}T${time}:00Z`);
+    end.setUTCHours(end.getUTCHours() + 4);
+    const endStr = end.toISOString().slice(0, 19).replace(/[-:]/g, '');
+    const esc = (t) => String(t).replace(/([,;\\])/g, '\\$1');
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//dnd-tools//schedule//HE',
+      'BEGIN:VEVENT',
+      `UID:${s.code}-${date}@dnd-tools`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+      `DTSTART;TZID=Asia/Jerusalem:${start}`,
+      `DTEND;TZID=Asia/Jerusalem:${endStr}`,
+      `SUMMARY:${esc('D&D — ' + s.title)}`,
+      place ? `LOCATION:${esc(place)}` : null,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ]
+      .filter(Boolean)
+      .join('\r\n');
+    return send(res, 200, ics, {
+      'content-type': 'text/calendar; charset=utf-8',
+      'content-disposition': `attachment; filename="dnd-${date}.ics"`,
+    });
+  }
+
+  return json(res, 404, { error: 'not found' });
+}
+
 // ---------- routing ----------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -200,8 +310,8 @@ const server = http.createServer(async (req, res) => {
 
   // Tool SPAs
   if (parts.length === 0) return serveFile(res, path.join(PUBLIC, 'index.html'));
-  if (parts[0] === 'session-zero' && !path.extname(url.pathname))
-    return serveFile(res, path.join(PUBLIC, 'session-zero', 'index.html'));
+  for (const tool of ['session-zero', 'schedule'])
+    if (parts[0] === tool && !path.extname(url.pathname)) return serveFile(res, path.join(PUBLIC, tool, 'index.html'));
 
   // Static assets (no path traversal)
   const file = path.normalize(path.join(PUBLIC, url.pathname));

@@ -57,6 +57,15 @@ const I = {
   chevL: '<path d="M30 10L16 24l14 14"/>',
   copy: '<rect x="15" y="15" width="24" height="26" rx="4"/><path d="M9 33V11a4 4 0 0 1 4-4h18"/>',
   link: '<path d="M20 28l8-8"/><path d="M22 14l3-3a7 7 0 0 1 10 10l-3 3M26 34l-3 3a7 7 0 0 1-10-10l3-3"/>',
+  x: '<path d="M13 13l22 22M35 13L13 35"/>',
+  maybe: '<path d="M18 17a6 6 0 1 1 8 5.6c-1.3.6-2 1.6-2 3V28"/><circle cx="24" cy="34" r="1.6" fill="currentColor"/>',
+  calendar:
+    '<rect class="fl" x="6" y="10" width="36" height="32" rx="5"/><path d="M6 19h36M15 6v8M33 6v8"/><circle cx="16" cy="27" r="1.8" fill="currentColor"/><circle cx="24" cy="27" r="1.8" fill="currentColor"/><circle cx="32" cy="27" r="1.8" fill="currentColor"/><circle cx="16" cy="34" r="1.8" fill="currentColor"/><circle cx="24" cy="34" r="1.8" fill="currentColor"/>',
+  moon: '<path class="fl" d="M34 30A15 15 0 0 1 20 8a16 16 0 1 0 20 20 15 15 0 0 1-6 2z"/><path d="M34 8v6M31 11h6"/>',
+  lock: '<rect class="fl" x="10" y="21" width="28" height="21" rx="4"/><path d="M16 21v-6a8 8 0 0 1 16 0v6"/><circle cx="24" cy="31" r="2.5" fill="currentColor"/>',
+  unlock: '<rect class="fl" x="10" y="21" width="28" height="21" rx="4"/><path d="M16 21v-6a8 8 0 0 1 15.5-2.8"/><circle cx="24" cy="31" r="2.5" fill="currentColor"/>',
+  pin: '<path class="fl" d="M24 43s13-12 13-23a13 13 0 0 0-26 0c0 11 13 23 13 23z"/><circle cx="24" cy="20" r="5"/>',
+  download: '<path d="M24 6v24M14 20l10 10 10-10M8 36v4a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2v-4"/>',
   pencil: '<path class="fl" d="M32 6l10 10-24 24H8V30z"/><path d="M27 11l10 10"/>',
 };
 

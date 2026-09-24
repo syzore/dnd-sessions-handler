@@ -1,47 +1,9 @@
 import { icon } from '/shared/icons.js';
+import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
 import { QUESTIONS, FRAMES, byId, question } from './content.js';
 import { buildContract } from './contract.js';
 
 const $app = document.getElementById('app');
-
-const esc = (s) =>
-  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-
-async function api(method, url, body) {
-  const r = await fetch(url, {
-    method,
-    headers: body ? { 'content-type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'משהו השתבש');
-  return j;
-}
-
-const store = {
-  get(k) {
-    try {
-      return JSON.parse(localStorage.getItem(k));
-    } catch {
-      return null;
-    }
-  },
-  set(k, v) {
-    try {
-      localStorage.setItem(k, JSON.stringify(v));
-    } catch {}
-  },
-};
-
-// One id per browser: friends on the same wifi share an IP, so IP won't do
-function playerId() {
-  let id = store.get('sz:pid');
-  if (!id) {
-    id = crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36);
-    store.set('sz:pid', id);
-  }
-  return id;
-}
 
 const base = (code) => `/session-zero/${code}`;
 const go = (url) => {
@@ -84,28 +46,12 @@ function renderCreate() {
     btn.disabled = true;
     try {
       const { code, adminKey } = await api('POST', '/api/sz/sessions', { title: document.getElementById('title').value });
-      store.set(`sz:admin:${code}`, adminKey);
+      rememberAdminKey(code, adminKey);
       renderCreated(code, adminKey);
     } catch (e) {
       document.getElementById('err').textContent = e.message;
       btn.disabled = false;
     }
-  };
-}
-
-function copyButton(id, text) {
-  const el = document.getElementById(id);
-  el.onclick = async () => {
-    if (navigator.share && /Mobi/.test(navigator.userAgent)) {
-      try {
-        return await navigator.share({ url: text });
-      } catch {}
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      el.classList.add('done');
-      el.querySelector('span').textContent = 'הועתק!';
-    } catch {}
   };
 }
 
@@ -120,6 +66,7 @@ function renderCreated(code, adminKey) {
       <div class="linkbox">${esc(link)}</div>
       <button class="cta" id="share">${icon('link')}<span>העתקה / שיתוף</span></button>
       <button class="cta ghost" id="fill">${icon('pencil')}<span>למלא בעצמי</span></button>
+      <a class="cta ghost" href="/schedule/${code}">${icon('calendar')}<span>לתאם מועד</span></a>
       <div class="note">
         <strong>קישור ה-DM</strong> — שמרו אותו לעצמכם. דרכו רואים גם את ההערות הפרטיות של כל שחקן.
         <div class="linkbox small">${esc(dmLink)}</div>
@@ -146,7 +93,7 @@ async function startQuiz(code) {
   if (saved?.response) {
     Object.assign(state, { name: saved.response.name, answers: saved.response.answers || {}, done: saved.response.done });
   } else {
-    state.name = store.get('sz:name') || '';
+    state.name = savedName();
   }
   state.done ? renderDone() : renderIntro();
 }
@@ -189,7 +136,7 @@ function renderIntro() {
   input.onkeydown = (e) => e.key === 'Enter' && !btn.disabled && btn.click();
   btn.onclick = () => {
     state.name = input.value.trim();
-    store.set('sz:name', state.name);
+    rememberName(state.name);
     save();
     renderQuestion(0);
   };
@@ -354,9 +301,7 @@ function renderDone() {
 let pollTimer = null;
 
 async function renderResults(code) {
-  const url = new URL(location.href);
-  const key = url.searchParams.get('key') || store.get(`sz:admin:${code}`);
-  if (url.searchParams.get('key')) store.set(`sz:admin:${code}`, key);
+  const key = adminKey(code);
 
   let data;
   try {
@@ -465,6 +410,7 @@ function paintResults(data, mine, keepScroll = false) {
         ${readyHtml}
         ${mine?.done ? `<button class="cta ghost" id="edit">${icon('pencil')}<span>לשנות תשובות</span></button>` : ''}
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף את השאלון</span></button>
+        <a class="cta ghost" href="/schedule/${code}">${icon('calendar')}<span>מתי משחקים?</span></a>
       </div>
       ${data.isAdmin ? dmPanel(data) : ''}
     </main>`);
