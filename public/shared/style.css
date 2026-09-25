@@ -422,7 +422,7 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .anchor.on .anchor-name, .anchor.on .anchor-edit { color: #1b1408; }
 .anchor-form { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
 .anchor-form input, .anchor-form textarea { font-size: 18px; padding: 10px 14px; }
-.type-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.type-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .type-btn {
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px;
   border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 13px; font-weight: 700;
@@ -488,3 +488,12 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .saved summary { display: flex; align-items: center; gap: 8px; }
 .saved summary .ic { width: 20px; height: 20px; color: var(--gold); }
 .saved .result { margin-top: 10px; background: var(--bg2); }
+.form-label { color: var(--muted); font-size: 14px; margin-bottom: -4px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset {
+  display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg2); font-size: 15px; font-weight: 500;
+}
+.preset .ic { width: 14px; height: 14px; color: var(--gold); stroke-width: 3.5; }
+.preset.on { background: var(--gold); border-color: var(--gold); color: #1b1408; font-weight: 700; }
+.preset.on .ic { color: #1b1408; }

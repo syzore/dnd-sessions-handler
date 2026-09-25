@@ -1,7 +1,8 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, store, adminKey, rememberAdminKey } from '/shared/lib.js';
 import { ANCHOR_TYPES, ENVIRONMENTS, KINDS } from './content.js';
-import { roll } from './engine.js';
+import { roll, pickAnchors } from './engine.js';
+import { LIB, libFor, libLabel } from './tags.js';
 
 const $app = document.getElementById('app');
 const MODES = [
@@ -28,6 +29,7 @@ const st = {
 };
 
 const q = () => `key=${encodeURIComponent(st.key)}`;
+const newId = () => (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 12);
 let uid = 0;
 
 // ---------------------------------------------------------------- boot
@@ -98,12 +100,14 @@ async function doRoll(kind, seed = null) {
   const placeholder = { id: ++uid, kind, loading: true };
   st.feed.unshift(placeholder);
   paintFeed();
+  const chosen = seed
+    ? st.anchors.filter((a) => seed.anchors?.includes(a.name))
+    : pickAnchors(st.anchors, { focus: st.focus, mode: st.mode });
   try {
     const r = await api('POST', `/api/tables/${st.code}/ai?${q()}`, {
       kind,
-      mode: st.mode,
       env: st.env,
-      focus: [...st.focus],
+      focus: chosen.map((a) => a.id),
       seed: seed ? [seed.title, ...seed.lines].join('\n') : null,
     });
     Object.assign(placeholder, { loading: false, title: r.title, lines: r.lines, anchors: r.anchors, source: 'ai' });
@@ -197,7 +201,7 @@ function paintAnchors() {
       <h2>${icon('anchor')} העוגנים שלי <span class="muted">(${st.anchors.length})</span></h2>
       <button class="chip" id="add-anchor">${icon('plus')}<span>עוגן</span></button>
     </header>
-    <p class="hint">דמויות, מקומות, ארגונים וסודות מהקמפיין. ההגרלות משלבות אותם. הקישו על עוגן כדי למקד בו.</p>
+    <p class="hint">מוטיבים (מקצועות, גזעים, רקעים, יצורים, נושאים) ושמות מהקמפיין. כל הגרלה בוחרת מהם באקראי, אפס או יותר, ובונה סביבם. הקישו על עוגן כדי לחייב אותו.</p>
     ${st.focus.size ? `<p class="hint focus-note">${icon('target')} ממוקד: ${st.anchors.filter((a) => st.focus.has(a.id)).map((a) => esc(a.name)).join(', ')} <button class="linklike" id="clear-focus">ניקוי</button></p>` : ''}
     <div class="anchor-groups">
       ${byType
@@ -220,7 +224,7 @@ function paintAnchors() {
     ${st.editing ? anchorForm() : ''}`;
 
   document.getElementById('add-anchor').onclick = () => {
-    st.editing = { type: st.editing?.type || 'character', name: '', note: '' };
+    st.editing = { type: st.editing?.type || 'class', name: '', note: '' };
     paintAnchors();
     document.getElementById('a-name').focus();
   };
@@ -249,14 +253,30 @@ function paintAnchors() {
   if (st.editing) wireAnchorForm();
 }
 
+function typeButtons(group, e) {
+  return ANCHOR_TYPES.filter((t) => t.group === group)
+    .map((t) => `<button class="type-btn ${e.type === t.id ? 'on' : ''}" data-type="${t.id}">${icon(t.icon)}<span>${t.label}</span></button>`)
+    .join('');
+}
+
 function anchorForm() {
   const e = st.editing;
+  const motif = typeOf(e.type).group === 'motif';
+  const presets = motif && !e.id ? LIB.filter((x) => x.type === e.type) : [];
+  const has = (x) => st.anchors.some((a) => a.type === x.type && libFor(a)?.id === x.id);
   return `
     <div class="anchor-form">
-      <div class="type-row">
-        ${ANCHOR_TYPES.map((t) => `<button class="type-btn ${e.type === t.id ? 'on' : ''}" data-type="${t.id}">${icon(t.icon)}<span>${t.label}</span></button>`).join('')}
-      </div>
-      <input id="a-name" maxlength="60" placeholder="שם (למשל: ${esc(typeOf(e.type).hint.split(',')[0])})" value="${esc(e.name)}">
+      <span class="form-label">מוטיבים: דברים שהקמפיין עוסק בהם</span>
+      <div class="type-row">${typeButtons('motif', e)}</div>
+      <span class="form-label">שמות מהקמפיין</span>
+      <div class="type-row">${typeButtons('named', e)}</div>
+      ${
+        presets.length
+          ? `<div class="presets">${presets.map((x) => `<button class="preset ${has(x) ? 'on' : ''}" data-preset="${x.id}">${has(x) ? icon('check') : icon('plus')}<span>${esc(libLabel(x))}</span></button>`).join('')}</div>
+             <span class="form-label">או משהו משלכם:</span>`
+          : ''
+      }
+      <input id="a-name" maxlength="60" placeholder="${motif ? 'למשל: ' + esc(typeOf(e.type).hint.split(',')[0]) + ' (אפשר זכר/נקבה: חובש/חובשת)' : 'שם (למשל: ' + esc(typeOf(e.type).hint.split(',')[0]) + ')'}" value="${esc(e.name)}">
       <textarea id="a-note" rows="2" maxlength="300" placeholder="כמה מילים עליו (לא חובה, עוזר ל-Claude)">${esc(e.note)}</textarea>
       <div class="row">
         <button class="cta" id="a-save">${icon('check')}<span>${e.id ? 'לשמור' : 'להוסיף'}</span></button>
@@ -280,9 +300,25 @@ function wireAnchorForm() {
         document.getElementById('a-name').focus();
       })
   );
+  $app.querySelectorAll('[data-preset]').forEach(
+    (b) =>
+      (b.onclick = async () => {
+        const x = LIB.find((l) => l.id === b.dataset.preset);
+        const existing = st.anchors.find((a) => a.type === x.type && libFor(a)?.id === x.id);
+        await saveAnchors(
+          existing
+            ? st.anchors.filter((a) => a !== existing)
+            : [...st.anchors, { id: newId(), type: x.type, name: libLabel(x), lib: x.id, note: '' }]
+        );
+        paintAnchors();
+      })
+  );
   const submit = async () => {
     if (!e.name.trim()) return name.focus();
-    const next = e.id ? st.anchors.map((a) => (a.id === e.id ? e : a)) : [...st.anchors, { ...e, id: crypto.randomUUID?.().slice(0, 12) }];
+    // "paladin" / "פלדינית" -> the library's פלדין, so the rich fragments kick in
+    const lib = typeOf(e.type).group === 'motif' ? libFor({ type: e.type, name: e.name }) : null;
+    const clean = lib ? { ...e, lib: lib.id, name: libLabel(lib) } : { ...e, lib: undefined };
+    const next = e.id ? st.anchors.map((a) => (a.id === e.id ? clean : a)) : [...st.anchors, { ...clean, id: newId() }];
     await saveAnchors(next);
     // Stay in "add" mode with the same type so a list of names goes in quickly
     st.editing = e.id ? null : { type: e.type, name: '', note: '' };

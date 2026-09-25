@@ -299,7 +299,8 @@ async function schedApi(req, res, parts, url) {
 // ---------- random tables (DM only) ----------
 // Only the Claude-backed "enrich" roll lives here; table rolls happen in the browser.
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
-const ANCHOR_TYPES = ['character', 'place', 'faction', 'item', 'secret'];
+const MOTIF_TYPES = ['class', 'race', 'background', 'creature', 'theme'];
+const ANCHOR_TYPES = [...MOTIF_TYPES, 'character', 'place', 'faction', 'item', 'secret'];
 
 const KIND_PROMPTS = {
   loot: 'a loot / treasure find: coins plus 1-3 items with D&D 5e values in gold pieces (write gold as מ״ז)',
@@ -311,6 +312,10 @@ const KIND_PROMPTS = {
   name: 'three fitting fantasy names, each with a few words of description',
   complication: 'a sudden complication the DM can throw into the current scene',
   place: 'a place: name, what it is known for, and a secret',
+  pockets: "the contents of a random person's pockets: a few coins and 2-4 small, telling objects",
+  corpse: 'a body the party finds: who it was, cause of death, what is on the body, and a clue',
+  room: 'a dungeon room: what the room is, a notable feature, who or what is there, and treasure',
+  tavernEvent: 'something that happens in the tavern right now, that the party can get pulled into',
 };
 const ENVIRONMENTS = { road: 'on the road', city: 'in a city', dungeon: 'in a dungeon', wild: 'in the wilderness' };
 const AVOID_EN = {
@@ -361,17 +366,16 @@ function aiPrompt(s, body) {
   const anchors = t.anchors.map(
     (a) => `- [${a.type}] ${a.name}${a.note ? ` — ${a.note}` : ''}${focus.has(a.id) ? '  (FOCUS: must be used)' : ''}`
   );
-  const how = {
-    random: 'Do not use the anchors; make something fresh that fits the campaign.',
-    mixed: 'Use at most one anchor, lightly, if it fits naturally.',
-    anchors: 'Tie the result to the anchors: use one or two of them in a meaningful way.',
-  }[body.mode] || '';
+  const how = 'None of the anchors were drawn this time: make something fresh that still fits the campaign.';
   const avoid = groupAvoid(s);
   return [
     `Generate ${KIND_PROMPTS[body.kind]}${body.kind === 'encounter' && ENVIRONMENTS[body.env] ? `, ${ENVIRONMENTS[body.env]}` : ''}.`,
     `Campaign: ${s.title}`,
     anchors.length ? `Campaign anchors:\n${anchors.join('\n')}` : 'No campaign anchors yet.',
-    focus.size ? 'Anchors marked FOCUS must appear in the result.' : how,
+    anchors.length
+      ? `Anchor types ${MOTIF_TYPES.join('/')} are motifs (archetypes, not specific individuals): build around them, e.g. a hermit who was once a paladin and now studies how to defeat dragons. The other types are specific named things in this campaign.`
+      : '',
+    focus.size ? 'The anchors marked FOCUS were drawn for this roll: all of them must shape the result, combined in one coherent idea.' : how,
     avoid.length ? `The group asked to avoid: ${avoid.join(', ')}.` : '',
     body.seed ? `Build on this table result, keeping its core idea but making it richer:\n${clean(body.seed, 1500)}` : '',
   ]
@@ -394,7 +398,13 @@ async function tablesApi(req, res, parts, url) {
     t.anchors = (Array.isArray(body.anchors) ? body.anchors : [])
       .filter((a) => a && ANCHOR_TYPES.includes(a.type) && clean(a.name, 60))
       .slice(0, 150)
-      .map((a) => ({ id: clean(a.id, 24) || crypto.randomBytes(6).toString('hex'), type: a.type, name: clean(a.name, 60), note: clean(a.note, 300) }));
+      .map((a) => ({
+        id: clean(a.id, 24) || crypto.randomBytes(6).toString('hex'),
+        type: a.type,
+        name: clean(a.name, 60),
+        note: clean(a.note, 300),
+        ...(a.lib ? { lib: clean(a.lib, 24) } : {}),
+      }));
     save();
     return json(res, 200, { anchors: t.anchors });
   }
