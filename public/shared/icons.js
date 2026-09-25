@@ -66,6 +66,11 @@ const I = {
   unlock: '<rect class="fl" x="10" y="21" width="28" height="21" rx="4"/><path d="M16 21v-6a8 8 0 0 1 15.5-2.8"/><circle cx="24" cy="31" r="2.5" fill="currentColor"/>',
   pin: '<path class="fl" d="M24 43s13-12 13-23a13 13 0 0 0-26 0c0 11 13 23 13 23z"/><circle cx="24" cy="20" r="5"/>',
   download: '<path d="M24 6v24M14 20l10 10 10-10M8 36v4a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2v-4"/>',
+  chest:
+    '<path class="fl" d="M6 20h36v20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M6 20c0-7 4-12 10-12h16c6 0 10 5 10 12"/><path d="M6 26h36M20 23h8v8h-8z"/>',
+  anchor: '<circle cx="24" cy="9" r="4"/><path d="M24 13v29M14 21h20"/><path d="M7 28c0 8 8 14 17 14s17-6 17-14"/><path d="M7 28l-2 4M7 28l4 2M41 28l2 4M41 28l-4 2"/>',
+  trash: '<path d="M8 13h32M19 13V8h10v5"/><path class="fl" d="M11 13l2 28a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2l2-28z"/><path d="M20 20v16M28 20v16"/>',
+  plus: '<path d="M24 10v28M10 24h28"/>',
   pencil: '<path class="fl" d="M32 6l10 10-24 24H8V30z"/><path d="M27 11l10 10"/>',
 };
 

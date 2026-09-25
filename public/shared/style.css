@@ -401,3 +401,90 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .stepper span { font-size: 22px; font-weight: 700; min-width: 48px; text-align: center; }
 .lock-fields { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
 .lock-fields input { font-size: 18px; padding: 10px 12px; }
+
+/* =================================================== random tables */
+.anchors { margin-top: 20px; }
+.anchors-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.anchors-head h2 { display: flex; align-items: center; gap: 8px; font-family: var(--serif); font-size: 22px; margin: 0; }
+.anchors-head h2 .ic { width: 26px; height: 26px; color: var(--gold); }
+.anchors .chip { margin-top: 0; }
+.focus-note { display: flex; align-items: center; gap: 6px; color: var(--gold); }
+.focus-note .ic { width: 16px; height: 16px; }
+.anchor-groups { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.anchor-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ag-label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 14px; min-width: 88px; }
+.ag-label .ic { width: 18px; height: 18px; color: var(--gold); }
+.anchor { display: inline-flex; align-items: stretch; border-radius: 99px; border: 1px solid var(--line); background: var(--bg2); overflow: hidden; }
+.anchor-name { background: none; border: none; padding: 6px 12px; cursor: pointer; font-size: 15px; font-weight: 500; }
+.anchor-edit { background: none; border: none; border-inline-start: 1px solid var(--line); padding: 0 8px; cursor: pointer; color: var(--muted); }
+.anchor-edit .ic { width: 14px; height: 14px; }
+.anchor.on { background: var(--gold); border-color: var(--gold); }
+.anchor.on .anchor-name, .anchor.on .anchor-edit { color: #1b1408; }
+.anchor-form { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
+.anchor-form input, .anchor-form textarea { font-size: 18px; padding: 10px 14px; }
+.type-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.type-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px;
+  border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); cursor: pointer; font-size: 13px; font-weight: 700;
+}
+.type-btn .ic { width: 28px; height: 28px; color: var(--gold); }
+.type-btn.on { border-color: var(--gold); background: var(--card-hi); }
+.cta.danger { color: var(--no); }
+
+.controls { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg button {
+  display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 12px; cursor: pointer;
+  border: 2px solid var(--line); background: var(--card); font-weight: 700; font-size: 16px;
+}
+.seg button .ic { width: 22px; height: 22px; color: var(--gold); }
+.seg button.on { border-color: var(--gold); background: var(--card-hi); }
+.seg.small button { padding: 6px 12px; font-size: 14px; font-weight: 500; }
+.seg-label { color: var(--muted); font-size: 14px; }
+#modes { display: grid; grid-template-columns: repeat(3, 1fr); }
+#modes button { justify-content: center; }
+.ai-toggle {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; cursor: pointer;
+  border: 2px dashed var(--line); background: none; font-weight: 700; text-align: right;
+}
+.ai-toggle .ic { width: 26px; height: 26px; color: var(--muted); flex: none; }
+.ai-toggle.on { border-style: solid; border-color: var(--gold); background: radial-gradient(120% 120% at 100% 0%, rgba(232,176,75,.2), transparent 60%), var(--card); }
+.ai-toggle.on .ic { color: var(--gold); }
+.ai-toggle:disabled { opacity: .45; cursor: default; }
+
+.gen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+.gen-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 104px; border-radius: var(--radius); cursor: pointer;
+  background: var(--card); border: 2px solid var(--line); font-size: 18px; font-weight: 700;
+  transition: transform .1s, border-color .15s;
+}
+.gen-btn .ic { width: 46px; height: 46px; color: var(--gold); }
+.gen-btn:hover { border-color: #56476b; }
+.gen-btn:active { transform: scale(.96); border-color: var(--gold); }
+
+.feed { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.feed-head { display: flex; align-items: baseline; justify-content: space-between; }
+.empty-feed { text-align: center; margin-top: 20px; }
+.result { padding: 16px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); animation: pop .2s ease-out; }
+@keyframes pop { from { transform: translateY(-6px); opacity: 0; } }
+.result.ai { border-color: rgba(232,176,75,.55); }
+.result header { display: flex; align-items: center; gap: 10px; }
+.r-ic { width: 32px; height: 32px; color: var(--gold); flex: none; }
+.result h3 { font-family: var(--serif); font-size: 22px; margin: 0; flex: 1; }
+.result ul { margin: 10px 0 0; padding: 0 20px 0 0; font-size: 17px; }
+.result li { margin-bottom: 4px; }
+.r-anchors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.r-anchors span { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; padding: 2px 10px; border-radius: 99px; background: var(--gold-soft); color: var(--gold); }
+.r-anchors .ic { width: 13px; height: 13px; }
+.r-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.r-actions .chip { margin-top: 0; }
+.chip.done { color: var(--yes); cursor: default; }
+.result.loading, .result.error { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.result.error { color: var(--no); }
+.result.error .ic { width: 22px; height: 22px; }
+.spinner.small { width: 24px; height: 24px; border-width: 3px; }
+.saved { margin-top: 24px; }
+.saved summary { display: flex; align-items: center; gap: 8px; }
+.saved summary .ic { width: 20px; height: 20px; color: var(--gold); }
+.saved .result { margin-top: 10px; background: var(--bg2); }

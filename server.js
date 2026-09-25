@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import Anthropic from '@anthropic-ai/sdk';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -101,6 +102,7 @@ function serveFile(res, file) {
 // A "session" is the group: every tool hangs its data off the same code and DM key.
 async function api(req, res, parts, url) {
   if (parts[1] === 'sched') return schedApi(req, res, parts, url);
+  if (parts[1] === 'tables') return tablesApi(req, res, parts, url);
   // parts: ['api', 'sz', 'sessions', code?, sub?, id?]
   if (parts[1] !== 'sz' || parts[2] !== 'sessions') return json(res, 404, { error: 'not found' });
 
@@ -294,6 +296,161 @@ async function schedApi(req, res, parts, url) {
   return json(res, 404, { error: 'not found' });
 }
 
+// ---------- random tables (DM only) ----------
+// Only the Claude-backed "enrich" roll lives here; table rolls happen in the browser.
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+const ANCHOR_TYPES = ['character', 'place', 'faction', 'item', 'secret'];
+
+const KIND_PROMPTS = {
+  loot: 'a loot / treasure find: coins plus 1-3 items with D&D 5e values in gold pieces (write gold as מ״ז)',
+  encounter: 'a random encounter: a situation with something happening and a twist, not just a list of monsters',
+  npc: 'an NPC: name, race and occupation, look, mannerism, what they want, a secret',
+  rumor: 'a tavern rumor, 1-2 sentences, which may be true, false or half-true',
+  hook: 'a quest hook: who asks, what they want, the reward, and a complication',
+  tavern: 'a tavern or inn: name, owner, house specialty, one odd detail',
+  name: 'three fitting fantasy names, each with a few words of description',
+  complication: 'a sudden complication the DM can throw into the current scene',
+  place: 'a place: name, what it is known for, and a secret',
+};
+const ENVIRONMENTS = { road: 'on the road', city: 'in a city', dungeon: 'in a dungeon', wild: 'in the wilderness' };
+const AVOID_EN = {
+  gore: 'gore / extreme violence',
+  sexual: 'sexual content',
+  sexual_violence: 'sexual violence',
+  child_violence: 'violence toward children',
+  animal: 'animal cruelty',
+  horror: 'horror',
+  drugs: 'drugs',
+  real_world: 'real-world religion or politics',
+};
+
+const AI_SYSTEM = `You generate results for a Dungeon Master's random tables in a Hebrew-speaking D&D 5e group.
+Write in natural, modern Hebrew with correct grammatical gender. Keep it table-ready: a short title and 1-6 short lines the DM can read aloud or use tonight. Be concrete and surprising rather than generic.
+When campaign anchors are given, weave them in as the request asks, and stay consistent with their notes. Content the group asked to avoid must not appear.
+List in anchors_used the exact names of the anchors you used.`;
+
+const AI_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    lines: { type: 'array', items: { type: 'string' } },
+    anchors_used: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['title', 'lines', 'anchors_used'],
+  additionalProperties: false,
+};
+
+function tables(s) {
+  return (s.tables ||= { anchors: [], saved: [] });
+}
+
+function groupAvoid(s) {
+  const ids = new Set();
+  const other = new Set();
+  for (const r of Object.values(s.responses || {})) {
+    if (!r.done) continue;
+    for (const id of r.answers.avoid || []) if (AVOID_EN[id]) ids.add(AVOID_EN[id]);
+    if ((r.answers.avoid || []).includes('other') && r.answers.avoidOther) other.add(clean(r.answers.avoidOther, 200));
+  }
+  return [...ids, ...other];
+}
+
+function aiPrompt(s, body) {
+  const t = tables(s);
+  const focus = new Set(body.focus || []);
+  const anchors = t.anchors.map(
+    (a) => `- [${a.type}] ${a.name}${a.note ? ` — ${a.note}` : ''}${focus.has(a.id) ? '  (FOCUS: must be used)' : ''}`
+  );
+  const how = {
+    random: 'Do not use the anchors; make something fresh that fits the campaign.',
+    mixed: 'Use at most one anchor, lightly, if it fits naturally.',
+    anchors: 'Tie the result to the anchors: use one or two of them in a meaningful way.',
+  }[body.mode] || '';
+  const avoid = groupAvoid(s);
+  return [
+    `Generate ${KIND_PROMPTS[body.kind]}${body.kind === 'encounter' && ENVIRONMENTS[body.env] ? `, ${ENVIRONMENTS[body.env]}` : ''}.`,
+    `Campaign: ${s.title}`,
+    anchors.length ? `Campaign anchors:\n${anchors.join('\n')}` : 'No campaign anchors yet.',
+    focus.size ? 'Anchors marked FOCUS must appear in the result.' : how,
+    avoid.length ? `The group asked to avoid: ${avoid.join(', ')}.` : '',
+    body.seed ? `Build on this table result, keeping its core idea but making it richer:\n${clean(body.seed, 1500)}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+async function tablesApi(req, res, parts, url) {
+  // parts: ['api', 'tables', code, sub?, id?]
+  const s = db.sessions[String(parts[2] || '').toUpperCase()];
+  if (!s) return json(res, 404, { error: 'הקבוצה לא נמצאה' });
+  if (url.searchParams.get('key') !== s.adminKey) return json(res, 403, { error: 'רק ה-DM' });
+  const t = tables(s);
+
+  if (req.method === 'GET' && parts.length === 3)
+    return json(res, 200, { code: s.code, title: s.title, anchors: t.anchors, saved: t.saved, ai: !!anthropic });
+
+  if (req.method === 'PUT' && parts[3] === 'anchors') {
+    const body = await readBody(req);
+    t.anchors = (Array.isArray(body.anchors) ? body.anchors : [])
+      .filter((a) => a && ANCHOR_TYPES.includes(a.type) && clean(a.name, 60))
+      .slice(0, 150)
+      .map((a) => ({ id: clean(a.id, 24) || crypto.randomBytes(6).toString('hex'), type: a.type, name: clean(a.name, 60), note: clean(a.note, 300) }));
+    save();
+    return json(res, 200, { anchors: t.anchors });
+  }
+
+  if (req.method === 'POST' && parts[3] === 'saved') {
+    const body = await readBody(req);
+    const item = {
+      id: crypto.randomBytes(6).toString('hex'),
+      kind: clean(body.kind, 20),
+      title: clean(body.title, 120),
+      lines: (Array.isArray(body.lines) ? body.lines : []).slice(0, 12).map((l) => clean(l, 500)),
+      anchors: (Array.isArray(body.anchors) ? body.anchors : []).slice(0, 10).map((a) => clean(a, 60)),
+      source: body.source === 'ai' ? 'ai' : 'table',
+      at: Date.now(),
+    };
+    t.saved = [item, ...t.saved].slice(0, 300);
+    save();
+    return json(res, 201, { item });
+  }
+
+  if (req.method === 'DELETE' && parts[3] === 'saved' && parts[4]) {
+    t.saved = t.saved.filter((x) => x.id !== parts[4]);
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  if (req.method === 'POST' && parts[3] === 'ai') {
+    if (!anthropic) return json(res, 503, { error: 'Claude לא מחובר (חסר ANTHROPIC_API_KEY)' });
+    const body = await readBody(req);
+    if (!KIND_PROMPTS[body.kind]) return json(res, 400, { error: 'סוג לא מוכר' });
+    try {
+      const response = await anthropic.beta.messages.create({
+        model: 'claude-opus-5',
+        max_tokens: 8000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: AI_SCHEMA } },
+        system: AI_SYSTEM,
+        messages: [{ role: 'user', content: aiPrompt(s, body) }],
+      });
+      if (response.stop_reason === 'refusal') return json(res, 422, { error: 'Claude סירב לבקשה הזאת' });
+      const text = response.content.find((b) => b.type === 'text')?.text;
+      const out = JSON.parse(text);
+      return json(res, 200, { title: out.title, lines: out.lines, anchors: out.anchors_used });
+    } catch (e) {
+      if (e instanceof Anthropic.RateLimitError) return json(res, 429, { error: 'יותר מדי בקשות, נסו שוב עוד רגע' });
+      if (e instanceof Anthropic.AuthenticationError) return json(res, 503, { error: 'מפתח ה-API של Claude לא תקין' });
+      if (e instanceof Anthropic.APIError) return json(res, 502, { error: `שגיאה מ-Claude (${e.status})` });
+      if (e instanceof SyntaxError) return json(res, 502, { error: 'Claude החזיר תשובה לא תקינה' });
+      throw e;
+    }
+  }
+
+  return json(res, 404, { error: 'not found' });
+}
+
 // ---------- routing ----------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -310,7 +467,7 @@ const server = http.createServer(async (req, res) => {
 
   // Tool SPAs
   if (parts.length === 0) return serveFile(res, path.join(PUBLIC, 'index.html'));
-  for (const tool of ['session-zero', 'schedule'])
+  for (const tool of ['session-zero', 'schedule', 'tables'])
     if (parts[0] === tool && !path.extname(url.pathname)) return serveFile(res, path.join(PUBLIC, tool, 'index.html'));
 
   // Static assets (no path traversal)

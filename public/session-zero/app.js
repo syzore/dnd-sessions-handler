@@ -411,6 +411,7 @@ function paintResults(data, mine, keepScroll = false) {
         ${mine?.done ? `<button class="cta ghost" id="edit">${icon('pencil')}<span>לשנות תשובות</span></button>` : ''}
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף את השאלון</span></button>
         <a class="cta ghost" href="/schedule/${code}">${icon('calendar')}<span>מתי משחקים?</span></a>
+        ${data.isAdmin ? `<a class="cta ghost" href="/tables/${code}">${icon('dice')}<span>שולחנות אקראיים (DM)</span></a>` : ''}
       </div>
       ${data.isAdmin ? dmPanel(data) : ''}
     </main>`);

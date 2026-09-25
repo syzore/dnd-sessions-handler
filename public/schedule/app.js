@@ -217,6 +217,7 @@ function paint(keepScroll = false) {
       <div class="footer stack">
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף את הקישור</span></button>
         <a class="cta ghost" href="/session-zero/${d.code}/results">${icon('scroll')}<span>לחוזה הקבוצתי (סשן אפס)</span></a>
+        ${d.isAdmin ? `<a class="cta ghost" href="/tables/${d.code}">${icon('dice')}<span>שולחנות אקראיים (DM)</span></a>` : ''}
       </div>
 
       ${d.isAdmin ? dmPanel(d) : ''}
