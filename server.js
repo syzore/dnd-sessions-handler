@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, ApiError as GeminiApiError } from '@google/genai';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -297,8 +298,13 @@ async function schedApi(req, res, parts, url) {
 }
 
 // ---------- random tables (DM only) ----------
-// Only the Claude-backed "enrich" roll lives here; table rolls happen in the browser.
+// Only the AI-backed rolls live here; table rolls happen in the browser.
+// Either provider is optional; the page offers whichever keys are set.
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const gemini = GEMINI_KEY ? new GoogleGenAI({ apiKey: GEMINI_KEY }) : null;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+const AI_PROVIDERS = [anthropic && 'claude', gemini && 'gemini'].filter(Boolean);
 const MOTIF_TYPES = ['class', 'race', 'background', 'creature', 'theme'];
 const ANCHOR_TYPES = [...MOTIF_TYPES, 'character', 'place', 'faction', 'item', 'secret'];
 
@@ -383,6 +389,31 @@ function aiPrompt(s, body) {
     .join('\n\n');
 }
 
+// Each returns {title, lines, anchors_used}, or null when the model declined
+async function askClaude(prompt) {
+  const response = await anthropic.beta.messages.create({
+    model: 'claude-opus-5',
+    max_tokens: 8000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: AI_SCHEMA } },
+    system: AI_SYSTEM,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  if (response.stop_reason === 'refusal') return null;
+  return JSON.parse(response.content.find((b) => b.type === 'text')?.text);
+}
+
+async function askGemini(prompt) {
+  const response = await gemini.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: prompt,
+    config: { systemInstruction: AI_SYSTEM, responseMimeType: 'application/json', responseJsonSchema: AI_SCHEMA },
+  });
+  if (!response.text) return null; // blocked by safety filters
+  return JSON.parse(response.text);
+}
+
 async function tablesApi(req, res, parts, url) {
   // parts: ['api', 'tables', code, sub?, id?]
   const s = db.sessions[String(parts[2] || '').toUpperCase()];
@@ -391,7 +422,7 @@ async function tablesApi(req, res, parts, url) {
   const t = tables(s);
 
   if (req.method === 'GET' && parts.length === 3)
-    return json(res, 200, { code: s.code, title: s.title, anchors: t.anchors, saved: t.saved, ai: !!anthropic });
+    return json(res, 200, { code: s.code, title: s.title, anchors: t.anchors, saved: t.saved, ai: AI_PROVIDERS });
 
   if (req.method === 'PUT' && parts[3] === 'anchors') {
     const body = await readBody(req);
@@ -418,6 +449,7 @@ async function tablesApi(req, res, parts, url) {
       lines: (Array.isArray(body.lines) ? body.lines : []).slice(0, 12).map((l) => clean(l, 500)),
       anchors: (Array.isArray(body.anchors) ? body.anchors : []).slice(0, 10).map((a) => clean(a, 60)),
       source: body.source === 'ai' ? 'ai' : 'table',
+      ...(body.source === 'ai' && ['claude', 'gemini'].includes(body.provider) ? { provider: body.provider } : {}),
       at: Date.now(),
     };
     t.saved = [item, ...t.saved].slice(0, 300);
@@ -432,28 +464,25 @@ async function tablesApi(req, res, parts, url) {
   }
 
   if (req.method === 'POST' && parts[3] === 'ai') {
-    if (!anthropic) return json(res, 503, { error: 'Claude לא מחובר (חסר ANTHROPIC_API_KEY)' });
     const body = await readBody(req);
+    const provider = AI_PROVIDERS.includes(body.provider) ? body.provider : AI_PROVIDERS[0];
+    if (!provider) return json(res, 503, { error: 'אין מפתח AI (ANTHROPIC_API_KEY או GEMINI_API_KEY)' });
     if (!KIND_PROMPTS[body.kind]) return json(res, 400, { error: 'סוג לא מוכר' });
+    const prompt = aiPrompt(s, body);
     try {
-      const response = await anthropic.beta.messages.create({
-        model: 'claude-opus-5',
-        max_tokens: 8000,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: AI_SCHEMA } },
-        system: AI_SYSTEM,
-        messages: [{ role: 'user', content: aiPrompt(s, body) }],
-      });
-      if (response.stop_reason === 'refusal') return json(res, 422, { error: 'Claude סירב לבקשה הזאת' });
-      const text = response.content.find((b) => b.type === 'text')?.text;
-      const out = JSON.parse(text);
-      return json(res, 200, { title: out.title, lines: out.lines, anchors: out.anchors_used });
+      const out = provider === 'gemini' ? await askGemini(prompt) : await askClaude(prompt);
+      if (!out) return json(res, 422, { error: 'המודל סירב לבקשה הזאת' });
+      return json(res, 200, { title: out.title, lines: out.lines, anchors: out.anchors_used, provider });
     } catch (e) {
       if (e instanceof Anthropic.RateLimitError) return json(res, 429, { error: 'יותר מדי בקשות, נסו שוב עוד רגע' });
       if (e instanceof Anthropic.AuthenticationError) return json(res, 503, { error: 'מפתח ה-API של Claude לא תקין' });
       if (e instanceof Anthropic.APIError) return json(res, 502, { error: `שגיאה מ-Claude (${e.status})` });
-      if (e instanceof SyntaxError) return json(res, 502, { error: 'Claude החזיר תשובה לא תקינה' });
+      if (e instanceof GeminiApiError) {
+        if (e.status === 429) return json(res, 429, { error: 'יותר מדי בקשות ל-Gemini, נסו שוב עוד רגע' });
+        if (e.status === 400 || e.status === 401 || e.status === 403) return json(res, 503, { error: `Gemini דחה את הבקשה (${e.status}), כדאי לבדוק את המפתח` });
+        return json(res, 502, { error: `שגיאה מ-Gemini (${e.status})` });
+      }
+      if (e instanceof SyntaxError) return json(res, 502, { error: 'המודל החזיר תשובה לא תקינה' });
       throw e;
     }
   }

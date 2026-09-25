@@ -497,3 +497,5 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .preset .ic { width: 14px; height: 14px; color: var(--gold); stroke-width: 3.5; }
 .preset.on { background: var(--gold); border-color: var(--gold); color: #1b1408; font-weight: 700; }
 .preset.on .ic { color: #1b1408; }
+.ai-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.ai-row .ai-toggle { flex: 1 1 240px; }

@@ -19,7 +19,8 @@ const st = {
   title: '',
   anchors: [],
   saved: [],
-  ai: false,
+  ai: [], // available providers: 'claude' | 'gemini'
+  provider: store.get('tables:provider'),
   focus: new Set(),
   mode: store.get('tables:mode') || 'mixed',
   env: store.get('tables:env') || null,
@@ -28,6 +29,9 @@ const st = {
   editing: null, // null | {id?, type, name, note}
 };
 
+const PROVIDER_NAMES = { claude: 'Claude', gemini: 'Gemini' };
+const providerName = (p) => PROVIDER_NAMES[p] || 'AI';
+const activeProvider = () => (st.ai.includes(st.provider) ? st.provider : st.ai[0]);
 const q = () => `key=${encodeURIComponent(st.key)}`;
 const newId = () => (crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 12);
 let uid = 0;
@@ -108,9 +112,10 @@ async function doRoll(kind, seed = null) {
       kind,
       env: st.env,
       focus: chosen.map((a) => a.id),
+      provider: activeProvider(),
       seed: seed ? [seed.title, ...seed.lines].join('\n') : null,
     });
-    Object.assign(placeholder, { loading: false, title: r.title, lines: r.lines, anchors: r.anchors, source: 'ai' });
+    Object.assign(placeholder, { loading: false, title: r.title, lines: r.lines, anchors: r.anchors, source: 'ai', provider: r.provider });
   } catch (e) {
     Object.assign(placeholder, { loading: false, error: e.message });
   }
@@ -149,9 +154,12 @@ function paint() {
           <button data-env="" class="${!st.env ? 'on' : ''}">כל מקום</button>
           ${ENVIRONMENTS.map((e) => `<button data-env="${e.id}" class="${st.env === e.id ? 'on' : ''}">${e.label}</button>`).join('')}
         </div>
-        <button class="ai-toggle ${st.useAi ? 'on' : ''}" id="ai" ${st.ai ? '' : 'disabled title="Claude לא מחובר"'}>
-          ${icon('sparkles')}<span>${st.ai ? (st.useAi ? 'Claude כותב את ההגרלות' : 'הגרלה רגילה מהטבלאות') : 'Claude לא מחובר'}</span>
-        </button>
+        <div class="ai-row">
+          <button class="ai-toggle ${st.useAi ? 'on' : ''}" id="ai" ${st.ai.length ? '' : 'disabled'}>
+            ${icon('sparkles')}<span>${st.ai.length ? (st.useAi ? `${providerName(activeProvider())} כותב את ההגרלות` : 'הגרלה רגילה מהטבלאות') : 'AI לא מחובר'}</span>
+          </button>
+          ${st.ai.length > 1 ? `<div class="seg small" id="providers">${st.ai.map((p) => `<button data-provider="${p}" class="${activeProvider() === p ? 'on' : ''}">${providerName(p)}</button>`).join('')}</div>` : ''}
+        </div>
       </div>
 
       <div class="gen">${KINDS.map((k) => `<button class="gen-btn" data-kind="${k.id}">${icon(k.icon)}<span>${k.label}</span></button>`).join('')}</div>
@@ -186,6 +194,14 @@ function paint() {
     st.useAi = !st.useAi;
     paint();
   };
+  $app.querySelectorAll('[data-provider]').forEach(
+    (b) =>
+      (b.onclick = () => {
+        st.provider = b.dataset.provider;
+        store.set('tables:provider', st.provider);
+        paint();
+      })
+  );
   $app.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => doRoll(b.dataset.kind)));
 
   paintAnchors();
@@ -277,7 +293,7 @@ function anchorForm() {
           : ''
       }
       <input id="a-name" maxlength="60" placeholder="${motif ? 'למשל: ' + esc(typeOf(e.type).hint.split(',')[0]) + ' (אפשר זכר/נקבה: חובש/חובשת)' : 'שם (למשל: ' + esc(typeOf(e.type).hint.split(',')[0]) + ')'}" value="${esc(e.name)}">
-      <textarea id="a-note" rows="2" maxlength="300" placeholder="כמה מילים עליו (לא חובה, עוזר ל-Claude)">${esc(e.note)}</textarea>
+      <textarea id="a-note" rows="2" maxlength="300" placeholder="כמה מילים עליו (לא חובה, עוזר ל-AI)">${esc(e.note)}</textarea>
       <div class="row">
         <button class="cta" id="a-save">${icon('check')}<span>${e.id ? 'לשמור' : 'להוסיף'}</span></button>
         <button class="cta ghost" id="a-cancel"><span>ביטול</span></button>
@@ -343,7 +359,7 @@ function wireAnchorForm() {
 function resultCard(r, { inFeed = true } = {}) {
   const k = kindOf(r.kind) || { icon: 'dice', label: '' };
   if (r.loading)
-    return `<article class="result loading"><div class="spinner small"></div><span>Claude כותב ${k.label}…</span></article>`;
+    return `<article class="result loading"><div class="spinner small"></div><span>${providerName(activeProvider())} כותב ${k.label}…</span></article>`;
   if (r.error)
     return `<article class="result error">${icon('x')}<span>${esc(r.error)}</span></article>`;
   return `
@@ -351,7 +367,7 @@ function resultCard(r, { inFeed = true } = {}) {
       <header>
         <span class="r-ic">${icon(k.icon)}</span>
         <h3>${esc(r.title)}</h3>
-        ${r.source === 'ai' ? `<span class="badge gold">${icon('sparkles')} Claude</span>` : ''}
+        ${r.source === 'ai' ? `<span class="badge gold">${icon('sparkles')} ${providerName(r.provider)}</span>` : ''}
       </header>
       <ul>${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
       ${r.anchors?.length ? `<div class="r-anchors">${r.anchors.map((a) => `<span>${icon('anchor')} ${esc(a)}</span>`).join('')}</div>` : ''}
@@ -359,7 +375,7 @@ function resultCard(r, { inFeed = true } = {}) {
         ${
           inFeed
             ? `<button class="chip" data-again="${r.kind}">${icon('dice')}<span>עוד אחד</span></button>
-               ${st.ai && r.source !== 'ai' ? `<button class="chip" data-enrich="${r.id}">${icon('sparkles')}<span>להעשיר</span></button>` : ''}
+               ${st.ai.length && r.source !== 'ai' ? `<button class="chip" data-enrich="${r.id}">${icon('sparkles')}<span>להעשיר</span></button>` : ''}
                ${r.savedId ? `<span class="chip done">${icon('check')}<span>נשמר</span></span>` : `<button class="chip" data-save="${r.id}">${icon('pin')}<span>לשמור</span></button>`}`
             : `<button class="chip" data-del="${r.id}">${icon('trash')}<span>למחוק</span></button>`
         }
