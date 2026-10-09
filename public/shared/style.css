@@ -90,6 +90,9 @@ input, textarea, .text-in, .big-text {
 input:focus, textarea:focus { border-color: var(--gold); }
 .text-in { margin-top: 12px; }
 .big-text { margin-top: 20px; }
+.other-box { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; text-align: right; }
+.other-box > span { font-weight: 700; color: var(--muted); }
+.other-box .big-text { margin-top: 0; }
 
 /* ---------- buttons ---------- */
 .cta {

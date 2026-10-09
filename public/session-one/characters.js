@@ -8,17 +8,28 @@
 //   icon  a name from /shared/icons.js (sword, shield, hat, skull, ...)
 //   steps the walkthrough, shown in order
 //
-// Step: { id, type, title?, prompt, hint?, options? }
+// Step: { id, type, title?, prompt, hint?, optional?, options?, multi?, other? }
 //   id      Latin, unique within the character (answers are saved by this id)
 //   type    'text'   free-text answer
-//           'choice' pick one of options
+//           'choice' pick from options
 //           'info'   read-only lore page, no answer saved (see below)
 //   title   optional Hebrew heading; when set, the prompt shows under it as an intro
 //   prompt  the Hebrew question (or the intro, when there is a title)
 //   hint    optional smaller line under the prompt
+//   optional true: a "דלג" button skips the step and clears its answer
 //   options for 'choice' only: [{ id, label, emoji?, subtitle?, description? }]
 //           if any option has a description, options render as full cards
 //           (emoji, label, subtitle, description); otherwise as plain buttons
+//   multi   'choice' only, true: several picks allowed
+//   other   'choice' only, false: hide the free-text box. By default every
+//           choice step shows "משהו אחר / לכתוב בעצמי" under the options, and
+//           the player may continue with only that text and no pick.
+//
+// Saved answers (answers[step id]):
+//   text            string
+//   choice          option id (string); with multi: true, an array of option ids
+//   choice, other   answers[`${id}_other`] = the free text, beside the pick
+//   skipped/empty   the key is absent
 //
 // Info step: { id, type: 'info', title?, prompt?, known?, secret? }
 //   known   [{ title?, text }] under "מה כולם יודעים"
@@ -175,11 +186,69 @@ const VILHELM_LORE = {
   ],
 };
 
+const MAGIC_ORIGIN_STEP = {
+  id: 'magic_origin',
+  type: 'choice',
+  multi: true,
+  title: '🪄 איך למדת קסם?',
+  prompt: 'לא כל אחד מסוגל לעשות קסם. איך גילית אותו, ואיך למדת לשלוט בו? בחר אחת, שלב כמה, או כתוב משהו משלך.',
+  options: [
+    {
+      id: 'academy',
+      emoji: '🏛️',
+      label: 'האקדמיה',
+      description: 'בית ספר לקסם: לחשים, תאוריה וסודות עתיקים. אולי הצטיינת, אולי התקשית, ואולי שברת את הכללים.',
+    },
+    {
+      id: 'apprentice',
+      emoji: '🧙',
+      label: 'החניך של המאסטר',
+      description: 'קוסם חזק, או מוזר במיוחד, לקח אותך תחת חסותו. השיעורים היו משונים יותר ממה שציפית.',
+    },
+    {
+      id: 'book',
+      emoji: '📚',
+      label: 'הספר האסור',
+      description: 'מצאת ספר לחשים יוצא דופן ולימדת את עצמך. חלק מהדפים חסרים, חלק אי אפשר לקרוא, וחלק פשוט מפחידים.',
+    },
+    {
+      id: 'family',
+      emoji: '🧬',
+      label: 'מורשת משפחתית',
+      description: 'הקסם עובר אצלכם במשפחה. ספרים ישנים, ידע מוזר, ואחריות שאתה עדיין לא מבין עד הסוף.',
+    },
+    {
+      id: 'awakening',
+      emoji: '⚡',
+      label: 'ההתעוררות הבלתי צפויה',
+      description: 'משהו יוצא דופן קרה, ומאז אתה מסוגל להפעיל קסם. אתה עדיין מנסה להבין את זה.',
+    },
+    {
+      id: 'society',
+      emoji: '🕯️',
+      label: 'האגודה הסודית',
+      description: 'חוג נסתר של מלומדים, מיסטיקנים או מטילי לחשים. יש לו כללים, סודות, ואולי גם התחייבויות.',
+    },
+    {
+      id: 'wanderer',
+      emoji: '🗺️',
+      label: 'הנודד הסקרן',
+      description: 'חורבות, חפצים עתיקים, מגילות נשכחות וניסויים מסוכנים. בלי הכשרה רשמית, אבל עם רעב אמיתי לידע.',
+    },
+  ],
+};
+
+const MAGIC_DREAM_STEP = {
+  id: 'magic_dream',
+  type: 'text',
+  optional: true,
+  prompt: 'מהי תעלומה קסומה אחת שהיית רוצה לפתור, או דבר אחד שאתה מקווה להשיג עם הקסם שלך?',
+};
+
 const ELEMENT_STEP = {
   id: 'element',
   type: 'choice',
   prompt: 'מה היסוד שלך?',
-  hint: 'בחרת "אחר"? כתוב/י אותו בשאלה האחרונה, או ספר/י ל-DM.',
   options: [
     { id: 'fire', emoji: '🔥', label: 'אש', subtitle: 'חום המדבר' },
     { id: 'acid', emoji: '🧪', label: 'חומצה' },
@@ -213,6 +282,59 @@ const GOAL_STEP = {
   type: 'text',
   prompt: 'מה המטרה המיידית שלך?',
   hint: 'למשל: להבריח אנשים אל מחוץ לאימפריה, או לתכנן התנקשות באדון דרקון מקומי.',
+};
+
+// Bebby: a halfling rogue.
+const ROGUE_ORIGIN_STEP = {
+  id: 'origin',
+  type: 'choice',
+  multi: true,
+  title: '🗡️ איפה למדת את הטריקים שלך?',
+  prompt: 'לכל נוכל יש סיפור. איך נהיית כל כך טוב בלהתגנב, לגנוב, לעבוד על אנשים ולצאת מצרות? בחר אחת, שלב כמה, או כתוב משהו משלך.',
+  options: [
+    {
+      id: 'street',
+      emoji: '🏚️',
+      label: 'שורד רחוב',
+      description: 'גדלת ברחובות. שם למדת לכייס, לזהות סכנה מרחוק ולהישאר תמיד צעד אחד לפני הצרות.',
+    },
+    {
+      id: 'performer',
+      emoji: '🎭',
+      label: 'אמן נודד',
+      description: 'קרקס, להקת תיאטרון או חבורת בדרנים. שם למדת זריזות ידיים, הטעיה, אקרובטיקה ואיך לקרוא קהל.',
+    },
+    {
+      id: 'guild',
+      emoji: '🗝️',
+      label: 'גילדת הגנבים',
+      description: 'רשת פשע אימנה אותך. אתה מכיר את החוקים של העולם התחתון, ואולי אתה עדיין חייב למישהו טובה.',
+    },
+    {
+      id: 'con',
+      emoji: '🦊',
+      label: 'הרמאי',
+      description: 'שקרים, תחפושות, והיכולת לגרום לאנשים לתת לך בדיוק את מה שאתה רוצה. אולי עקיצה אחת יותר מדי.',
+    },
+    {
+      id: 'smuggler',
+      emoji: '📦',
+      label: 'מבריח או שליח',
+      description: 'העברת הודעות סודיות או סחורה לא חוקית דרך מקומות מסוכנים. אתה מכיר שבילים נסתרים ויודע איך לא למשוך תשומת לב.',
+    },
+    {
+      id: 'scout',
+      emoji: '🏹',
+      label: 'הסייר הערמומי',
+      description: 'הישרדות בטבע, התגנבות מול אויבים, איתור מלכודות, ומכה ברגע שאף אחד לא מצפה לה.',
+    },
+    {
+      id: 'rich',
+      emoji: '🏰',
+      label: 'חיים בין העשירים',
+      description: 'עבדת בבית של עשירים או בחצר של אצילים. למדת את הסודות שלהם, את ההרגלים שלהם, ואיך לקחת דברים בלי שאף אחד ישים לב.',
+    },
+  ],
 };
 
 export const CHARACTERS = [
@@ -258,16 +380,21 @@ export const CHARACTERS = [
     name: 'וילהלם',
     cls: 'קוסם',
     icon: 'hat',
-    steps: [VILHELM_LORE, ELEMENT_STEP, ALLEGIANCE_STEP, GOAL_STEP],
+    steps: [VILHELM_LORE, MAGIC_ORIGIN_STEP, MAGIC_DREAM_STEP, ELEMENT_STEP, ALLEGIANCE_STEP, GOAL_STEP],
   },
   {
     id: 'bebby',
     name: 'בבי',
     cls: 'נוכל',
     icon: 'mask',
-    // TODO: Aviv fills this in
     steps: [
-      { id: 'why', type: 'text', prompt: 'למה בבי יצא להרפתקאות?' },
+      ROGUE_ORIGIN_STEP,
+      {
+        id: 'past_contact',
+        type: 'text',
+        optional: true,
+        prompt: 'יש מישהו מהעבר שלך שעלול לזהות אותך, להזדקק לעזרה שלך, או לרצות ממך משהו?',
+      },
     ],
   },
 ];

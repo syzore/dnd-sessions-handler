@@ -236,7 +236,11 @@ function renderStep(i) {
   }
   const st = steps[i];
   const cur = state.answers[st.id];
-  const cards = st.type === 'choice' && st.options.some((o) => o.description);
+  const otherKey = `${st.id}_other`;
+  const isChoice = st.type === 'choice';
+  const cards = isChoice && st.options.some((o) => o.description);
+  const withOther = isChoice && st.other !== false;
+  const picked = (id) => (Array.isArray(cur) ? cur.includes(id) : cur === id);
   const loreSection = (items, cls, heading) =>
     items?.length
       ? `<section class="lore ${cls}"><h2 class="lore-h">${heading}</h2>${items.map((it) => `
@@ -247,7 +251,7 @@ function renderStep(i) {
       ? `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים')}${loreSection(st.secret, 'lore-secret', '🤫 מה רק אתה יודע')}</div>`
       : st.type === 'choice'
       ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => `
-          <button class="opt ${cards ? 'opt-card' : ''} ${cur === o.id ? 'sel' : ''}" data-id="${o.id}">
+          <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}">
             ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
             <span class="opt-text">
               <span class="opt-label">${esc(o.label)}</span>
@@ -255,7 +259,9 @@ function renderStep(i) {
               ${o.description ? `<span class="opt-desc">${esc(o.description)}</span>` : ''}
             </span>
             <span class="opt-check">${icon('check')}</span>
-          </button>`).join('')}</div>`
+          </button>`).join('')}</div>${withOther ? `
+        <label class="other-box"><span>משהו אחר / לכתוב בעצמי</span>
+          <textarea class="big-text" id="other" rows="3" maxlength="1000">${esc(state.answers[otherKey] || '')}</textarea></label>` : ''}`
       : `<textarea class="big-text" id="ans" rows="5" maxlength="2000">${esc(cur)}</textarea>`;
   const last = i === steps.length - 1;
   screen(`
@@ -266,22 +272,60 @@ function renderStep(i) {
       ${st.title && st.prompt ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
       ${st.hint ? `<p class="hint">${esc(st.hint)}</p>` : ''}
       ${body}
-      <div class="footer"><button class="cta" id="next" ${st.type === 'choice' && !cur ? 'disabled' : ''}>${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button></div>
+      <div class="footer ${st.optional ? 'stack' : ''}">
+        <button class="cta" id="next">${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button>
+        ${st.optional ? `<button class="cta ghost" id="skip"><span>דלג</span></button>` : ''}
+      </div>
     </main>`);
   document.getElementById('back').onclick = () => (i === 0 ? renderChoice() : renderStep(i - 1));
   const next = document.getElementById('next');
+  const answered = () => {
+    const v = state.answers[st.id];
+    return (Array.isArray(v) ? v.length > 0 : !!v) || !!state.answers[otherKey]?.trim();
+  };
+  const refresh = () => (next.disabled = isChoice && !st.optional && !answered());
+  refresh();
   next.onclick = () => {
     save().catch(() => {});
     renderStep(i + 1);
   };
-  if (st.type === 'choice') {
+  if (st.optional) {
+    document.getElementById('skip').onclick = () => {
+      delete state.answers[st.id];
+      delete state.answers[otherKey];
+      save().catch(() => {});
+      renderStep(i + 1);
+    };
+  }
+  if (isChoice) {
     $app.querySelectorAll('.opt').forEach((b) => {
       b.onclick = () => {
-        state.answers[st.id] = b.dataset.id;
-        $app.querySelectorAll('.opt').forEach((x) => x.classList.toggle('sel', x === b));
-        next.disabled = false;
+        const id = b.dataset.id;
+        if (st.multi) {
+          const prev = Array.isArray(state.answers[st.id]) ? state.answers[st.id] : state.answers[st.id] ? [state.answers[st.id]] : [];
+          const nextPicks = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+          if (nextPicks.length) state.answers[st.id] = nextPicks;
+          else delete state.answers[st.id];
+          b.classList.toggle('sel', nextPicks.includes(id));
+          b.setAttribute('aria-pressed', nextPicks.includes(id));
+        } else {
+          state.answers[st.id] = id;
+          $app.querySelectorAll('.opt').forEach((x) => {
+            x.classList.toggle('sel', x === b);
+            x.setAttribute('aria-pressed', x === b);
+          });
+        }
+        refresh();
       };
     });
+    const other = document.getElementById('other');
+    if (other) {
+      other.oninput = (e) => {
+        if (e.target.value.trim()) state.answers[otherKey] = e.target.value;
+        else delete state.answers[otherKey];
+        refresh();
+      };
+    }
   } else if (st.type === 'text') {
     document.getElementById('ans').oninput = (e) => (state.answers[st.id] = e.target.value);
   }
@@ -319,14 +363,21 @@ async function renderDm(code) {
     return screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
   }
   const choiceLabel = (id) => CHOICES.find((o) => o.id === id)?.label || '—';
-  const answerText = (st, v) => (st.type === 'choice' ? st.options.find((o) => o.id === v)?.label || v : v);
+  const label = (st, v) => st.options.find((o) => o.id === v)?.label || v;
+  const answerText = (st, a) => {
+    const v = a?.[st.id];
+    if (st.type !== 'choice') return v;
+    const picks = (Array.isArray(v) ? v : v ? [v] : []).map((x) => label(st, x)).join(', ');
+    const other = a?.[`${st.id}_other`]?.trim();
+    return [picks, other && `משהו אחר: ${other}`].filter(Boolean).join(' · ');
+  };
   const rows = data.players
     .map((p) => {
       const c = character(p.character);
       const steps = (c?.steps || []).filter((s) => s.type !== 'info'); // info steps hold no answer
-      const known = new Set(steps.map((s) => s.id));
+      const known = new Set(steps.flatMap((s) => [s.id, `${s.id}_other`]));
       const answers = [
-        ...steps.map((st) => [st.title || st.prompt, answerText(st, p.answers?.[st.id])]),
+        ...steps.map((st) => [st.title || st.prompt, answerText(st, p.answers)]),
         ...Object.entries(p.answers || {}).filter(([k]) => !known.has(k)), // answers to steps since removed
       ];
       return `
@@ -335,7 +386,7 @@ async function renderDm(code) {
           <dl class="dm-dl">
             <div><dt>החלטה</dt><dd>${esc(choiceLabel(p.choice))}</dd></div>
             ${p.choice === 'rename' ? `<div><dt>שם חדש</dt><dd>${esc(p.newName) || '—'}</dd></div>` : ''}
-            ${answers.map(([q, a]) => `<div><dt>${esc(q)}</dt><dd>${esc(a) || '—'}</dd></div>`).join('')}
+            ${answers.map(([q, a]) => `<div><dt>${esc(q)}</dt><dd>${esc(Array.isArray(a) ? a.join(', ') : a) || '—'}</dd></div>`).join('')}
           </dl>
         </details>`;
     })
