@@ -278,7 +278,12 @@ function renderCommon() {
       <div class="footer"><button class="cta" id="next">${icon('chevL')}<span>המשך</span></button></div>
     </main>`);
   document.getElementById('back').onclick = renderChoice;
-  document.getElementById('next').onclick = () => (state.choice === 'switch' ? renderEnd() : renderStep(0));
+  document.getElementById('next').onclick = () => {
+    if (state.choice !== 'switch') return renderStep(0);
+    state.done = true; // a switch player has nothing more to answer; the DM sees them as done
+    save().catch(() => {});
+    renderEnd();
+  };
 }
 
 function renderStep(i) {
@@ -432,7 +437,7 @@ async function renderDm(code) {
       ];
       return `
         <details class="card dm-player" open>
-          <summary>${esc(p.name || 'ללא שם')} · ${esc(c ? `${c.name} (${c.cls})` : 'עוד לא בחר/ה')} ${p.done ? '' : '<span class="muted">(באמצע)</span>'}</summary>
+          <summary>${esc(p.name || 'ללא שם')} · ${esc(c ? `${c.name} (${c.cls})` : 'עוד לא בחר/ה')} ${!p.done ? '<span class="muted">(באמצע)</span>' : p.choice === 'switch' ? '<span class="muted">(יחליף דמות)</span>' : ''}</summary>
           <dl class="dm-dl">
             <div><dt>החלטה</dt><dd>${esc(choiceLabel(p.choice))}</dd></div>
             ${p.choice === 'rename' ? `<div><dt>שם חדש</dt><dd>${esc(p.newName) || '—'}</dd></div>` : ''}
