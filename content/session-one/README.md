@@ -56,6 +56,7 @@ Each step starts with `## <type>: <id>`, shown in file order, followed by `key: 
 | `multi: true` | בחירה: אפשר כמה / choice: several picks |
 | `other: false` | בחירה: בלי תיבת "משהו אחר" (שמופיעה כברירת מחדל) / choice: hide the free-text box (shown by default) |
 | `use: <list>` | בחירה: האפשרויות מ-`lists/<list>.md` / choice: options from a shared list |
+| `use: <list>` (in `### known`/`### secret`) | info: פריטי לור משותפים מ-`lists/<list>.md` / info: shared lore bullets, listed first |
 
 כל ערך הוא שורה אחת. / Each value is one line.
 
@@ -106,6 +107,18 @@ title: קוסם אנושי באימפריית הדרקון
 ### secret
 
 - אתה יודע איפה המנהרה שעוקפת את השערים.
+```
+
+גם פריטי לור משותפים כתובים פעם אחת: קובץ ב-`lists/` שכולו שורות `- **כותרת** טקסט`. שורה `use: <name>` בתוך `### known` או `### secret` מוסיפה את הפריטים שלו בראש הסעיף, לפני הפריטים של הדמות עצמה.
+
+Shared lore bullets are written once too: a `lists/<name>.md` file of `- **title** text` lines. A `use: <name>` line inside `### known` or `### secret` puts those bullets first, before the character's own.
+
+```markdown
+### secret
+
+use: faith-secret
+
+- **המסדרים השבורים** סוד שרק לטוראטור יש.
 ```
 
 `world.md` הוא שלב info אחד (`## info: common_lore`) שכל השחקנים רואים.

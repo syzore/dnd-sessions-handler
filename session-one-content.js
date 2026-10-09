@@ -66,17 +66,26 @@ function parseFile(text, rel, kind, lists = {}) {
       if (o.paras.length) o.description = o.paras.join('\n\n');
       delete o.paras;
     }
+    // "use: <list>" inside ### known / ### secret: the list's bullets go first
+    for (const [sec, u] of Object.entries(step.uses || {})) {
+      const list = lists[u.name];
+      if (!list) fail(u.line, `"use: ${u.name}" but there is no lists/${u.name}.md`);
+      if (!list.bullets) fail(u.line, `lists/${u.name}.md holds options, not "- " lore bullets`);
+      step[sec] = [...list.bullets.map((b) => ({ ...b })), ...step[sec]];
+    }
+    delete step.uses;
+    if (kind === 'list' && step.bullets && step.options) fail(n, 'a list file holds either ### options or "- " lore bullets, not both');
     if (step.use) {
-      if (step.type !== 'choice') fail(n, '"use:" only works on a choice step');
+      if (step.type !== 'choice') fail(n, '"use:" at the top of a step only works on a choice step (in an info step, put it under ### known / ### secret)');
       const list = lists[step.use];
       if (!list) fail(n, `"use: ${step.use}" but there is no lists/${step.use}.md`);
       if (step.options) fail(n, 'a step with "use:" takes its options from the list; remove the ### options here');
       Object.assign(step, { ...list.keys, ...step, options: list.options });
       delete step.use;
     }
-    if (step.type === 'choice' && !step.options?.length) fail(n, 'a choice step needs ### options (or "use: <list>")');
+    if (step.type === 'choice' && !step.options?.length && !step.bullets) fail(n, 'a choice step needs ### options (or "use: <list>")');
     if (step.type === 'info' && !step.known && !step.secret) fail(n, 'an info step needs a ### known or ### secret section');
-    for (const it of [...(step.known || []), ...(step.secret || [])]) {
+    for (const it of [...(step.known || []), ...(step.secret || []), ...(step.bullets || [])]) {
       if (!it.text) fail(it.line, 'this lore bullet has no text');
       delete it.line;
     }
@@ -149,6 +158,12 @@ function parseFile(text, rel, kind, lists = {}) {
       continue;
     }
 
+    // a list file of lore bullets (for "use:" under ### known / ### secret)
+    if (kind === 'list' && section === null && l.startsWith('- ')) {
+      step.bullets = [];
+      section = 'bullets';
+    }
+
     // step-level key lines (before any ### section)
     if (section === null) {
       const m = l.match(KEY_LINE);
@@ -165,7 +180,15 @@ function parseFile(text, rel, kind, lists = {}) {
     }
 
     // info sections: "- **title** text" bullets; lines below a bullet continue it
-    if (section === 'known' || section === 'secret') {
+    if (section === 'known' || section === 'secret' || section === 'bullets') {
+      const u = section !== 'bullets' && l.match(/^use:\s*([a-z0-9_-]+)$/);
+      if (u) {
+        step.uses ||= {};
+        if (step.uses[section]) fail(n, `"use:" appears twice in this ### ${section} section`);
+        step.uses[section] = { name: u[1], line: n };
+        item = null;
+        continue;
+      }
       if (l.startsWith('- ')) {
         const b = l.slice(2).trim();
         const m = b.match(/^\*\*(.+?)\*\*\s*(.*)$/);
@@ -212,8 +235,8 @@ export function loadContent(dir) {
   for (const f of mdFiles(path.join(dir, 'lists'))) {
     const rel = path.join('lists', f);
     const { steps } = parseFile(read(dir, rel), relOf(rel), 'list');
-    const { id, type, options, ...keys } = steps[0];
-    lists[f.slice(0, -3)] = { keys, options };
+    const { id, type, options, bullets, ...keys } = steps[0];
+    lists[f.slice(0, -3)] = { keys, options, bullets };
   }
 
   if (!fs.existsSync(path.join(dir, 'world.md'))) throw new ContentError(`${relOf('world.md')}: file is missing`);
