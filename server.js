@@ -104,6 +104,7 @@ function serveFile(res, file) {
 async function api(req, res, parts, url) {
   if (parts[1] === 'sched') return schedApi(req, res, parts, url);
   if (parts[1] === 'tables') return tablesApi(req, res, parts, url);
+  if (parts[1] === 's1') return s1Api(req, res, parts, url);
   // parts: ['api', 'sz', 'sessions', code?, sub?, id?]
   if (parts[1] !== 'sz' || parts[2] !== 'sessions') return json(res, 404, { error: 'not found' });
 
@@ -490,6 +491,63 @@ async function tablesApi(req, res, parts, url) {
   return json(res, 404, { error: 'not found' });
 }
 
+// ---------- session one: premade character pick + walkthrough ----------
+const S1_CHOICES = ['keep', 'rename', 'switch'];
+
+async function s1Api(req, res, parts, url) {
+  // parts: ['api', 's1', code, 'me', pid]
+  const s = db.sessions[String(parts[2] || '').toUpperCase()];
+  if (!s) return json(res, 404, { error: 'הקבוצה לא נמצאה' });
+  const players = (s.sessionOne ||= { players: {} }).players;
+  const isAdmin = url.searchParams.get('key') === s.adminKey;
+  const owner = (charId, pid) => Object.entries(players).find(([id, p]) => id !== pid && p.character === charId);
+
+  // GET /api/s1/:code?pid=&key=
+  if (req.method === 'GET' && parts.length === 3) {
+    const pid = url.searchParams.get('pid');
+    const taken = {};
+    for (const [id, p] of Object.entries(players)) if (id !== pid && p.character) taken[p.character] = p.name;
+    const all = Object.values(players).sort((a, b) => a.createdAt - b.createdAt);
+    return json(res, 200, {
+      code: s.code,
+      title: s.title,
+      isAdmin,
+      taken,
+      me: players[pid] || null,
+      name: players[pid]?.name || s.responses[pid]?.name || '',
+      players: isAdmin ? all : undefined,
+    });
+  }
+
+  // PUT /api/s1/:code/me/:pid  {name?, character?, choice?, newName?, answers?, done?}
+  if (req.method === 'PUT' && parts[3] === 'me' && parts[4]) {
+    const body = await readBody(req);
+    const pid = clean(parts[4], 64);
+    const prev = players[pid] || { createdAt: Date.now(), character: null, choice: null, newName: '', answers: {} };
+    let character = prev.character;
+    if (body.character !== undefined) {
+      character = body.character === null ? null : clean(body.character, 32);
+      if (character && owner(character, pid)) return json(res, 409, { error: 'הדמות הזאת כבר נלקחה' });
+    }
+    const answers = body.answers && typeof body.answers === 'object' ? body.answers : prev.answers;
+    if (JSON.stringify(answers).length > 20000) return json(res, 413, { error: 'too large' });
+    players[pid] = {
+      ...prev,
+      name: clean(body.name ?? prev.name, 40),
+      character,
+      choice: S1_CHOICES.includes(body.choice) ? body.choice : body.choice === null ? null : prev.choice,
+      newName: clean(body.newName ?? prev.newName, 40),
+      answers,
+      done: body.done ?? prev.done ?? false,
+      updatedAt: Date.now(),
+    };
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  return json(res, 404, { error: 'not found' });
+}
+
 // ---------- routing ----------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -506,7 +564,7 @@ const server = http.createServer(async (req, res) => {
 
   // Tool SPAs
   if (parts.length === 0) return serveFile(res, path.join(PUBLIC, 'index.html'));
-  for (const tool of ['session-zero', 'schedule', 'tables'])
+  for (const tool of ['session-zero', 'schedule', 'tables', 'session-one'])
     if (parts[0] === tool && !path.extname(url.pathname)) return serveFile(res, path.join(PUBLIC, tool, 'index.html'));
 
   // Static assets (no path traversal)
