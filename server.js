@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI, ApiError as GeminiApiError } from '@google/genai';
+import { loadContent, contentFor, ContentError } from './session-one-content.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -493,8 +494,27 @@ async function tablesApi(req, res, parts, url) {
 
 // ---------- session one: premade character pick + walkthrough ----------
 const S1_CHOICES = ['keep', 'rename', 'switch'];
+// The characters and lore, hand-edited as Markdown (see content/session-one/README.md).
+// Parsed on every request: an edit shows on refresh, no restart.
+const S1_CONTENT_DIR = path.join(ROOT, 'content', 'session-one');
 
 async function s1Api(req, res, parts, url) {
+  // GET /api/s1/content?code=&pid=&key=
+  // The DM key gets everything; a player gets only their own character's secrets.
+  if (req.method === 'GET' && parts[2] === 'content' && parts.length === 3) {
+    let content;
+    try {
+      content = loadContent(S1_CONTENT_DIR);
+    } catch (e) {
+      if (e instanceof ContentError) return json(res, 500, { error: `שגיאה בקובץ התוכן: ${e.message}` });
+      throw e;
+    }
+    const s = db.sessions[String(url.searchParams.get('code') || '').toUpperCase()];
+    const isAdmin = !!s && url.searchParams.get('key') === s.adminKey;
+    const character = s?.sessionOne?.players[url.searchParams.get('pid')]?.character;
+    return json(res, 200, contentFor(content, { isAdmin, character }));
+  }
+
   // parts: ['api', 's1', code, 'me', pid]
   const s = db.sessions[String(parts[2] || '').toUpperCase()];
   if (!s) return json(res, 404, { error: 'הקבוצה לא נמצאה' });

@@ -1,6 +1,10 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
-import { CHARACTERS, COMMON_LORE, character } from './characters.js';
+
+// Characters and lore come from the server (content/session-one/*.md, parsed per request).
+let CHARACTERS = [];
+let COMMON_LORE = null;
+const character = (id) => CHARACTERS.find((c) => c.id === id);
 
 const $app = document.getElementById('app');
 const base = (code) => `/session-one/${code}`;
@@ -16,13 +20,37 @@ const CHOICES = [
   { id: 'switch', icon: 'dice', label: 'לא מתחבר/ת אליה, אחליף אחרי שהפרולוג ייגמר' },
 ];
 
+// The DM key gets every secret; a player gets only their own character's.
+async function loadContent(code, key) {
+  const q = new URLSearchParams({ code, pid: playerId() });
+  if (key) q.set('key', key);
+  ({ commonLore: COMMON_LORE, characters: CHARACTERS } = await api('GET', `/api/s1/content?${q}`));
+}
+
+// A broken content file: show the parser's message (file and line), not a blank page.
+function renderContentError(e) {
+  screen(`
+    <main class="wrap center">
+      <div class="hero-icon">${icon('question')}</div>
+      <h1 class="q-title">בעיה בקובץ התוכן</h1>
+      <p class="lead" dir="auto">${esc(e.message)}</p>
+    </main>`);
+}
+
 // ---------------------------------------------------------------- routing
-function route() {
+async function route() {
   const parts = location.pathname.split('/').filter(Boolean);
   if (parts.length === 1) return renderCreate();
   const code = parts[1].toUpperCase();
-  if (parts[2] === 'dm' && parts[3] === 'lore') return renderLore(code);
-  if (parts[2] === 'dm') return renderDm(code);
+  const dm = parts[2] === 'dm';
+  screen('<main class="wrap center"><div class="spinner"></div></main>');
+  try {
+    await loadContent(code, dm ? adminKey(code) : null);
+  } catch (e) {
+    return renderContentError(e);
+  }
+  if (dm && parts[3] === 'lore') return renderLore(code);
+  if (dm) return renderDm(code);
   return start(code);
 }
 
@@ -177,6 +205,7 @@ async function renderPick() {
       try {
         await save({ character: b.dataset.id });
         state.character = b.dataset.id;
+        await loadContent(state.code).catch(() => {}); // this character's secrets
         renderChoice();
       } catch (e) {
         document.getElementById('err').textContent = e.message;
@@ -429,8 +458,8 @@ async function renderDm(code) {
 }
 
 // ---------------------------------------------------------------- DM lore compendium
-// Read-only: everything in characters.js, secrets included. Same key check as
-// the DM view: the server only answers isAdmin for the right key.
+// Read-only: all of content/session-one, secrets included. Same key check as
+// the DM view: the server only answers isAdmin (and sends every secret) for the right key.
 async function renderLore(code) {
   const key = adminKey(code);
   let data;
