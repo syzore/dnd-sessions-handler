@@ -1,6 +1,6 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
-import { CHARACTERS, character } from './characters.js';
+import { CHARACTERS, COMMON_LORE, character } from './characters.js';
 
 const $app = document.getElementById('app');
 const base = (code) => `/session-one/${code}`;
@@ -21,6 +21,7 @@ function route() {
   const parts = location.pathname.split('/').filter(Boolean);
   if (parts.length === 1) return renderCreate();
   const code = parts[1].toUpperCase();
+  if (parts[2] === 'dm' && parts[3] === 'lore') return renderLore(code);
   if (parts[2] === 'dm') return renderDm(code);
   return start(code);
 }
@@ -220,11 +221,36 @@ function renderChoice() {
   next.onclick = () => {
     if (state.choice !== 'rename') state.newName = '';
     save().catch(() => {});
-    state.choice === 'switch' ? renderEnd() : renderStep(0);
+    renderCommon();
   };
 }
 
 const canGo = () => !!state.choice && (state.choice !== 'rename' || !!state.newName);
+
+// An info step's known/secret sections (player flow and DM compendium).
+const loreSection = (items, cls, heading) =>
+  items?.length
+    ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => `
+        <div class="lore-item">${it.title ? `<h3 class="lore-t">${esc(it.title)}</h3>` : ''}<p>${esc(it.text)}</p></div>`).join('')}</section>`
+    : '';
+const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע') =>
+  `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים')}${loreSection(st.secret, 'lore-secret', secretHeading)}</div>`;
+
+// Shared world lore, shown to every player after the keep/rename/switch choice.
+function renderCommon() {
+  const c = character(state.character);
+  screen(`
+    ${topbar()}
+    <main class="wrap q">
+      <div class="kicker">${esc(shownName())} · ${esc(c.cls)}</div>
+      <h1 class="q-title">${esc(COMMON_LORE.title)}</h1>
+      ${COMMON_LORE.prompt ? `<p class="lead step-intro">${esc(COMMON_LORE.prompt)}</p>` : ''}
+      ${loreHtml(COMMON_LORE)}
+      <div class="footer"><button class="cta" id="next">${icon('chevL')}<span>המשך</span></button></div>
+    </main>`);
+  document.getElementById('back').onclick = renderChoice;
+  document.getElementById('next').onclick = () => (state.choice === 'switch' ? renderEnd() : renderStep(0));
+}
 
 function renderStep(i) {
   const c = character(state.character);
@@ -241,14 +267,9 @@ function renderStep(i) {
   const cards = isChoice && st.options.some((o) => o.description);
   const withOther = isChoice && st.other !== false;
   const picked = (id) => (Array.isArray(cur) ? cur.includes(id) : cur === id);
-  const loreSection = (items, cls, heading) =>
-    items?.length
-      ? `<section class="lore ${cls}"><h2 class="lore-h">${heading}</h2>${items.map((it) => `
-          <div class="lore-item">${it.title ? `<h3 class="lore-t">${esc(it.title)}</h3>` : ''}<p>${esc(it.text)}</p></div>`).join('')}</section>`
-      : '';
   const body =
     st.type === 'info'
-      ? `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים')}${loreSection(st.secret, 'lore-secret', '🤫 מה רק אתה יודע')}</div>`
+      ? loreHtml(st)
       : st.type === 'choice'
       ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => `
           <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}">
@@ -277,7 +298,7 @@ function renderStep(i) {
         ${st.optional ? `<button class="cta ghost" id="skip"><span>דלג</span></button>` : ''}
       </div>
     </main>`);
-  document.getElementById('back').onclick = () => (i === 0 ? renderChoice() : renderStep(i - 1));
+  document.getElementById('back').onclick = () => (i === 0 ? renderCommon() : renderStep(i - 1));
   const next = document.getElementById('next');
   const answered = () => {
     const v = state.answers[st.id];
@@ -399,9 +420,76 @@ async function renderDm(code) {
         <h2>${icon('eye')} רק ל-DM</h2>
         ${rows || '<p class="muted">עוד אין שחקנים</p>'}
       </section>
-      <div class="footer stack"><button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button></div>
+      <div class="footer stack">
+        <a class="cta ghost" href="${base(code)}/dm/lore?key=${encodeURIComponent(key)}">${icon('eye')}<span>כל הלור והבחירות</span></a>
+        <button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button>
+      </div>
     </main>`);
   copyButton('share', `${location.origin}${base(code)}`);
+}
+
+// ---------------------------------------------------------------- DM lore compendium
+// Read-only: everything in characters.js, secrets included. Same key check as
+// the DM view: the server only answers isAdmin for the right key.
+async function renderLore(code) {
+  const key = adminKey(code);
+  let data;
+  try {
+    data = await api('GET', `/api/s1/${code}${key ? `?key=${encodeURIComponent(key)}` : ''}`);
+  } catch {
+    return renderNotFound();
+  }
+  if (!data.isAdmin) {
+    return screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
+  }
+  const card = (o) => `
+    <div class="opt opt-card">
+      ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
+      <span class="opt-text">
+        <span class="opt-label">${esc(o.label)}</span>
+        ${o.subtitle ? `<span class="opt-sub">${esc(o.subtitle)}</span>` : ''}
+        ${o.description ? `<span class="opt-desc">${esc(o.description)}</span>` : ''}
+      </span>
+    </div>`;
+  const stepHtml = (c, st) => {
+    const tags = [
+      st.type === 'info' ? 'מידע' : st.type === 'choice' ? (st.multi ? 'בחירה מרובה' : 'בחירה') : 'שאלה פתוחה',
+      st.optional && 'אופציונלי',
+    ].filter(Boolean).join(' · ');
+    const body =
+      st.type === 'info'
+        ? loreHtml(st, `🤫 הסודות של ${c.name}`)
+        : st.type === 'choice'
+        ? `<div class="grid one cards">${st.options.map(card).join('')}</div>`
+        : '';
+    return `
+      <section class="lore-step">
+        <div class="kicker">${esc(tags)}</div>
+        <h3 class="q-title small">${esc(st.title || st.prompt || '')}</h3>
+        ${st.title && st.prompt ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
+        ${st.hint ? `<p class="hint">${esc(st.hint)}</p>` : ''}
+        ${body}
+      </section>`;
+  };
+  const chars = CHARACTERS.map((c) => `
+    <details class="card dm-player">
+      <summary>${esc(c.name)} · ${esc(c.cls)}</summary>
+      ${(c.steps || []).map((st) => stepHtml(c, st)).join('')}
+    </details>`).join('');
+  screen(`
+    <main class="wrap results">
+      <div class="kicker">${esc(data.title)}</div>
+      <h1 class="q-title">סשן ראשון: כל הלור והבחירות</h1>
+      <section class="dm">
+        <h2>${icon('eye')} רק ל-DM</h2>
+        <details class="card dm-player" open>
+          <summary>${esc(COMMON_LORE.title)} (כל השחקנים)</summary>
+          ${loreHtml(COMMON_LORE)}
+        </details>
+        ${chars}
+      </section>
+      <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key)}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
+    </main>`);
 }
 
 route();
