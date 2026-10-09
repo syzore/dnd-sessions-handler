@@ -236,11 +236,17 @@ function renderStep(i) {
   }
   const st = steps[i];
   const cur = state.answers[st.id];
+  const cards = st.type === 'choice' && st.options.some((o) => o.description);
   const body =
     st.type === 'choice'
-      ? `<div class="grid">${st.options.map((o) => `
-          <button class="opt ${cur === o.id ? 'sel' : ''}" data-id="${o.id}">
-            <span class="opt-text"><span class="opt-label">${esc(o.label)}</span></span>
+      ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => `
+          <button class="opt ${cards ? 'opt-card' : ''} ${cur === o.id ? 'sel' : ''}" data-id="${o.id}">
+            ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
+            <span class="opt-text">
+              <span class="opt-label">${esc(o.label)}</span>
+              ${o.subtitle ? `<span class="opt-sub">${esc(o.subtitle)}</span>` : ''}
+              ${o.description ? `<span class="opt-desc">${esc(o.description)}</span>` : ''}
+            </span>
             <span class="opt-check">${icon('check')}</span>
           </button>`).join('')}</div>`
       : `<textarea class="big-text" id="ans" rows="5" maxlength="2000">${esc(cur)}</textarea>`;
@@ -249,7 +255,8 @@ function renderStep(i) {
     ${topbar(i, steps.length)}
     <main class="wrap q">
       <div class="kicker">${esc(shownName())} · ${esc(c.cls)}</div>
-      <h1 class="q-title">${esc(st.prompt)}</h1>
+      <h1 class="q-title">${esc(st.title || st.prompt)}</h1>
+      ${st.title ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
       ${st.hint ? `<p class="hint">${esc(st.hint)}</p>` : ''}
       ${body}
       <div class="footer"><button class="cta" id="next" ${st.type === 'choice' && !cur ? 'disabled' : ''}>${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button></div>
@@ -312,7 +319,7 @@ async function renderDm(code) {
       const steps = c?.steps || [];
       const known = new Set(steps.map((s) => s.id));
       const answers = [
-        ...steps.map((st) => [st.prompt, answerText(st, p.answers?.[st.id])]),
+        ...steps.map((st) => [st.title || st.prompt, answerText(st, p.answers?.[st.id])]),
         ...Object.entries(p.answers || {}).filter(([k]) => !known.has(k)), // answers to steps since removed
       ];
       return `

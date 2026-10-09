@@ -152,6 +152,13 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .sel > .opt-check, .sel .frame-main > .opt-check { opacity: 1; transform: scale(1); }
 .opt.sel { border-color: var(--gold); background: var(--card-hi); box-shadow: 0 0 0 4px var(--gold-soft); }
 
+/* choice cards: options with emoji, subtitle and description */
+.grid.cards { max-width: 560px; }
+.opt-card { align-items: flex-start; padding: 18px 16px; }
+.opt-emoji { font-size: 40px; line-height: 1; flex: none; width: 52px; text-align: center; }
+.opt-desc { font-size: 16px; line-height: 1.55; color: var(--text); opacity: .85; margin-top: 6px; }
+.step-intro { margin-top: 10px; max-width: 560px; }
+
 /* avoid list: compact, no pictures */
 .avoid .opt { min-height: 64px; }
 .opt-box { width: 30px; height: 30px; flex: none; color: var(--line); transition: color .15s; }
