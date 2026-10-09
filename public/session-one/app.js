@@ -338,7 +338,8 @@ function renderStep(i) {
     const v = state.answers[st.id];
     return (Array.isArray(v) ? v.length > 0 : !!v) || !!state.answers[otherKey]?.trim();
   };
-  const refresh = () => (next.disabled = isChoice && !st.optional && !answered());
+  const textEmpty = () => st.type === 'text' && !String(state.answers[st.id] || '').trim();
+  const refresh = () => (next.disabled = !st.optional && (isChoice ? !answered() : textEmpty()));
   refresh();
   next.onclick = () => {
     save().catch(() => {});
@@ -382,7 +383,10 @@ function renderStep(i) {
       };
     }
   } else if (st.type === 'text') {
-    document.getElementById('ans').oninput = (e) => (state.answers[st.id] = e.target.value);
+    document.getElementById('ans').oninput = (e) => {
+      state.answers[st.id] = e.target.value;
+      refresh();
+    };
   }
 }
 
