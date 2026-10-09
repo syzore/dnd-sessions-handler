@@ -12,12 +12,21 @@
 //   id      Latin, unique within the character (answers are saved by this id)
 //   type    'text'   free-text answer
 //           'choice' pick one of options
+//           'info'   read-only lore page, no answer saved (see below)
 //   title   optional Hebrew heading; when set, the prompt shows under it as an intro
 //   prompt  the Hebrew question (or the intro, when there is a title)
 //   hint    optional smaller line under the prompt
 //   options for 'choice' only: [{ id, label, emoji?, subtitle?, description? }]
 //           if any option has a description, options render as full cards
 //           (emoji, label, subtitle, description); otherwise as plain buttons
+//
+// Info step: { id, type: 'info', title?, prompt?, known?, secret? }
+//   known   [{ title?, text }] under "מה כולם יודעים"
+//   secret  [{ title?, text }] under "🤫 מה רק אתה יודע", in a sealed dark card
+//   Either section may be left out. Nothing is saved; the DM view skips it.
+//   { id: 'lore', type: 'info', title: 'מה צריך לדעת', known: [
+//       { title: 'העיר', text: 'כולם יודעים שהשערים נסגרים בשקיעה.' },
+//   ], secret: [{ text: 'אתה יודע איפה המנהרה שעוקפת אותם.' }] },
 //
 // A step shared by several characters: define it once as a const and put the
 // same object in each character's steps (see GOD_STEP).
@@ -115,6 +124,97 @@ const TRIBE_STEP = {
   options: GOLIATH_TRIBES,
 };
 
+// Vilhelm: a human evoker inside the Mharoti Dragon Empire (Midgard), unregistered and rebel.
+const VILHELM_LORE = {
+  id: 'lore',
+  type: 'info',
+  title: 'קוסם אנושי באימפריית הדרקון',
+  known: [
+    {
+      title: 'קשקשים וג\'מבוקה',
+      text: "באימפריה המהארוטית, קסם הוא מעמד. העולם מתחלק לבעלי קשקשים (דרקונים, דרייקים, בני-דרקון וקובולדים) ולכל השאר: הג'מבוקה, \"התנים\".",
+    },
+    {
+      title: 'כישוף מול ספרים',
+      text: 'כישוף מולד הוא אצילי: הוא זורם בדם הדרקונים או בא מאלי היסודות, כמו ולס נחש-העולם. קוסמות נלמדת מספרים, ולכן האימפריה רואה בה חיקוי עלוב של מי שלא נולד עם מתנה, ומתייחסת אליה בחשד או בתועלתנות קרה.',
+    },
+    {
+      title: 'סיכון ביטחוני',
+      text: 'קוסם אנושי הוא "עבד שמנסה לקנות כוח של דרקון בספרים". האימפריה זוכרת את המערב השומם, שם ממלכות קוסמים אנושיות השמידו את עצמן בקסם ארקני.',
+    },
+    {
+      title: 'רכוש קיסרי',
+      text: 'קוסם אנושי נסבל רק אחרי שנשבע אמונים מלאים למורזה, אדון דרקון, או לסולטן האימה. מאותו רגע הוא רכוש: מבטל לחשים, מנהל חשבונות, אדריכל ואיש לוגיסטיקה. קוסם לא רשום נצוד ומוצא להורג.',
+    },
+    {
+      title: 'מי כן מכובד',
+      text: "קוסמים בעלי קשקשים, קובולדים ואלמנטליסטים בני-דרקון, מקבלים כבוד ומקום בלגיונות או באקדמיות של הרקש. קוסמים של מעצמות יריבות, נוריה נטאל ומגדר, הם מטרה ראשונה, והקסם שלהם מוחרם. קוסמים אלפים וגנומים הם ג'מבוקה, בדיוק כמו בני אדם.",
+    },
+  ],
+  secret: [
+    {
+      title: 'נשק לא רשום',
+      text: 'בעיני השליטים אתה נשק לא רשום. כדור אש אחד או ברק אחד על כוחות האימפריה, ויחידות ציד-הקוסמים של לגיונות הטימאר כבר עוקבות אחרי שאריות היסוד שהשארת.',
+    },
+    {
+      title: 'כפירה',
+      text: 'הקסם שלך הוא חילול קודש: הרס יסודי טהור הוא זכות האל שהדרקונים לוקחים לעצמם. בעיני המורזה אתה לא מורד. אתה תועבה תאולוגית.',
+    },
+    {
+      title: 'ספר הלחשים',
+      text: 'ספר לחשים בלי היתר פירושו מוות. מורדים מסווים אותו כפנקס של סוחר, מקעקעים נוסחאות מתחת לבגדים, או משננים לחשים ממטמונים קבורים בשטח.',
+    },
+    {
+      title: 'ארטילריה כבדה',
+      text: 'אתה הארטילריה הכבדה של המרד: פוגע בשיירות אספקה ונעלם לפני שהדרייקים מגיעים. עיצוב לחשים מאפשר לך לפוצץ חיילים בעלי קשקשים ולחסוך את חבריך ללוחמת החופש.',
+    },
+    {
+      title: 'רשת הברחה',
+      text: "אתה תלוי במחתרת הג'מבוקה ובטבעות מבריחים כדי להשיג רכיבים מוגבלים: גופרית, גואנו עטלפים, חוטי נחושת. בשווקים של האימפריה כל אחד מהם נמצא במעקב.",
+    },
+  ],
+};
+
+const ELEMENT_STEP = {
+  id: 'element',
+  type: 'choice',
+  prompt: 'מה היסוד שלך?',
+  hint: 'בחרת "אחר"? כתוב/י אותו בשאלה האחרונה, או ספר/י ל-DM.',
+  options: [
+    { id: 'fire', emoji: '🔥', label: 'אש', subtitle: 'חום המדבר' },
+    { id: 'acid', emoji: '🧪', label: 'חומצה' },
+    { id: 'lightning', emoji: '⚡', label: 'ברק' },
+    { id: 'other', emoji: '✨', label: 'אחר' },
+  ],
+};
+
+const ALLEGIANCE_STEP = {
+  id: 'allegiance',
+  type: 'choice',
+  prompt: 'עם מי אתה נלחם?',
+  options: [
+    {
+      id: 'cell',
+      emoji: '🕯️',
+      label: 'תא מורדים',
+      description: 'אתה חלק מקבוצת מורדים בתוך האימפריה. יש לך חברים שסומכים עליך, ומפקדים שמצפים ממך לפקודות.',
+    },
+    {
+      id: 'lone',
+      emoji: '🌑',
+      label: 'נוקם בודד',
+      description: 'אתה פועל לבד. אף אחד לא יכול להסגיר אותך, ואף אחד לא יבוא להציל אותך.',
+    },
+  ],
+};
+
+const GOAL_STEP = {
+  id: 'goal',
+  type: 'text',
+  prompt: 'מה המטרה המיידית שלך?',
+  hint: 'למשל: להבריח אנשים אל מחוץ לאימפריה, או לתכנן התנקשות באדון דרקון מקומי.',
+};
+
 export const CHARACTERS = [
   {
     id: 'turator',
@@ -158,10 +258,7 @@ export const CHARACTERS = [
     name: 'וילהלם',
     cls: 'קוסם',
     icon: 'hat',
-    // TODO: Aviv fills this in
-    steps: [
-      { id: 'why', type: 'text', prompt: 'למה וילהלם יצא להרפתקאות?' },
-    ],
+    steps: [VILHELM_LORE, ELEMENT_STEP, ALLEGIANCE_STEP, GOAL_STEP],
   },
   {
     id: 'bebby',

@@ -237,8 +237,15 @@ function renderStep(i) {
   const st = steps[i];
   const cur = state.answers[st.id];
   const cards = st.type === 'choice' && st.options.some((o) => o.description);
+  const loreSection = (items, cls, heading) =>
+    items?.length
+      ? `<section class="lore ${cls}"><h2 class="lore-h">${heading}</h2>${items.map((it) => `
+          <div class="lore-item">${it.title ? `<h3 class="lore-t">${esc(it.title)}</h3>` : ''}<p>${esc(it.text)}</p></div>`).join('')}</section>`
+      : '';
   const body =
-    st.type === 'choice'
+    st.type === 'info'
+      ? `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים')}${loreSection(st.secret, 'lore-secret', '🤫 מה רק אתה יודע')}</div>`
+      : st.type === 'choice'
       ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => `
           <button class="opt ${cards ? 'opt-card' : ''} ${cur === o.id ? 'sel' : ''}" data-id="${o.id}">
             ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
@@ -255,8 +262,8 @@ function renderStep(i) {
     ${topbar(i, steps.length)}
     <main class="wrap q">
       <div class="kicker">${esc(shownName())} · ${esc(c.cls)}</div>
-      <h1 class="q-title">${esc(st.title || st.prompt)}</h1>
-      ${st.title ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
+      <h1 class="q-title">${esc(st.title || st.prompt || '')}</h1>
+      ${st.title && st.prompt ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
       ${st.hint ? `<p class="hint">${esc(st.hint)}</p>` : ''}
       ${body}
       <div class="footer"><button class="cta" id="next" ${st.type === 'choice' && !cur ? 'disabled' : ''}>${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button></div>
@@ -275,7 +282,7 @@ function renderStep(i) {
         next.disabled = false;
       };
     });
-  } else {
+  } else if (st.type === 'text') {
     document.getElementById('ans').oninput = (e) => (state.answers[st.id] = e.target.value);
   }
 }
@@ -316,7 +323,7 @@ async function renderDm(code) {
   const rows = data.players
     .map((p) => {
       const c = character(p.character);
-      const steps = c?.steps || [];
+      const steps = (c?.steps || []).filter((s) => s.type !== 'info'); // info steps hold no answer
       const known = new Set(steps.map((s) => s.id));
       const answers = [
         ...steps.map((st) => [st.title || st.prompt, answerText(st, p.answers?.[st.id])]),
