@@ -170,11 +170,23 @@ function finish() {
 // The page term under a backdrop press, if any. Hit testing skips the inert page
 // (elementsFromPoint returns only the dialog and <html>), so compare the term boxes.
 // getClientRects: a term can wrap onto two lines.
+// A box is not a hit when the user cannot see the term: in a closed <details> body, or
+// under a sticky/fixed element such as the top bar (that tap closes instead).
+const inside = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+function coveredAt(x, y, el) {
+  for (const c of document.body.querySelectorAll('*')) {
+    if (c === dialog || c.contains(el)) continue;
+    const pos = getComputedStyle(c).position;
+    if ((pos === 'sticky' || pos === 'fixed') && inside(x, y, c.getBoundingClientRect())) return true;
+  }
+  return false;
+}
 function pageTermAt(x, y) {
   for (const el of document.querySelectorAll(TRIGGER)) {
-    if (dialog.contains(el)) continue;
+    if (dialog.contains(el) || el.closest('details:not([open]) > :not(summary)')) continue;
+    if (!el.checkVisibility({ contentVisibilityAuto: true, visibilityProperty: true })) continue;
     for (const r of el.getClientRects()) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
+      if (inside(x, y, r)) return coveredAt(x, y, el) ? null : el;
     }
   }
   return null;
