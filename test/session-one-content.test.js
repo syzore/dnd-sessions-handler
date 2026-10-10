@@ -102,6 +102,25 @@ test('F1: unknown id in a list file and in a character option description', () =
   fails({ 'characters/a.md': replace('תיאור עם [[baal]]', 'תיאור עם [[nope]]') }, 'content/session-one/characters/a.md line 28: [[nope]]: there is no term "nope" (terms/*.md)');
 });
 
+test('F1: Object.prototype names are not terms', () => {
+  for (const id of ['constructor', '__proto__', 'tostring', 'hasownproperty']) {
+    fails({ 'world.md': replace('[[veles]] נחש', `[[${id}]] נחש`) }, `content/session-one/world.md line 8: [[${id}]]: there is no term "${id}" (terms/*.md)`);
+  }
+});
+
+test('a term may have the id "constructor" or "__proto__"', () => {
+  const { terms } = load({ 'terms/x.md': termFile('', { id: 'constructor' }) + '\n' + termFile('', { id: '__proto__' }) });
+  assert.equal(Object.hasOwn(terms, 'constructor'), true);
+  assert.equal(terms.constructor.en, 'X');
+  assert.equal(Object.hasOwn(terms, '__proto__'), true);
+  fails({ 'terms/x.md': termFile('', { id: 'constructor' }) + '\n' + termFile('', { id: 'constructor' }) }, 'content/session-one/terms/x.md line 6: term id "constructor" is used by another term (content/session-one/terms/x.md line 1)');
+});
+
+test('the "|" text may hold a single "]" (D2: any text except "]]")', () => {
+  const c = load({ 'world.md': replace('[[veles]] נחש', '[[baal|a]b]] נחש') });
+  assert.match(c.commonLore.known[0].text, /\[\[baal\|a\]b\]\]/);
+});
+
 // ---------------------------------------------------------------- F2: bad syntax
 
 test('F2: bad reference syntax gives file and line', () => {

@@ -6,12 +6,15 @@ import { esc } from './lib.js';
 let TERMS = {};
 // The terms the server sent with the content: { <id>: { id, he, en, ... } }.
 export const setTerms = (terms) => (TERMS = terms || {});
+// Own keys only: "constructor" or "__proto__" must not find Object.prototype (F7).
+export const termOf = (id) => (Object.hasOwn(TERMS, id) ? TERMS[id] : undefined);
 
-const REF = /\[\[([^\]|]*)(?:\|([^\]]*))?\]\]/g;
+// [[id]] or [[id|text]]; the text is anything except "]]" (D2), so it may hold a single "]".
+const REF = /\[\[([^\]|]*)(?:\|((?:(?!\]\]).)*))?\]\]/g;
 
 // The text a reference shows: the text after "|", else the term's Hebrew name.
 // An id the client does not know (F7) shows its "|" text, else the bare id.
-const display = (id, text) => text ?? TERMS[id]?.he ?? id;
+const display = (id, text) => text ?? termOf(id)?.he ?? id;
 
 // Display text with no markup: for buttons' attributes, DM answer labels, <title>.
 export const plainText = (str) => String(str ?? '').replace(REF, (_, id, text) => display(id, text));
@@ -28,7 +31,7 @@ export function richText(str, { inert = false } = {}) {
     out += esc(s.slice(last, m.index));
     last = m.index + whole.length;
     const shown = esc(display(id, text));
-    out += TERMS[id] ? `<span class="term-ref${inert ? ' term-inert' : ''}" data-term="${esc(id)}">${shown}</span>` : shown;
+    out += termOf(id) ? `<span class="term-ref${inert ? ' term-inert' : ''}" data-term="${esc(id)}">${shown}</span>` : shown;
   }
   return out + esc(s.slice(last));
 }
@@ -40,7 +43,7 @@ export function addEnglish(scope) {
   const seen = new Set();
   for (const el of scope.querySelectorAll('[data-term]')) {
     if (el.closest('[data-term-scope]') !== (scope.matches('[data-term-scope]') ? scope : null)) continue;
-    const t = TERMS[el.dataset.term];
+    const t = termOf(el.dataset.term);
     if (!t || seen.has(t.id)) continue;
     seen.add(t.id);
     const en = document.createElement('span');

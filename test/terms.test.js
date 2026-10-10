@@ -38,3 +38,20 @@ test('no raw [[ survives either helper', () => {
     assert.ok(!richText(s).includes('[['));
   }
 });
+
+test('Object.prototype names are unknown ids, not terms (F7)', () => {
+  assert.equal(richText('[[constructor]] [[__proto__|x]] [[toString]]'), 'constructor x toString');
+  assert.equal(plainText('[[constructor]]'), 'constructor');
+});
+
+test('setTerms: a term may be called "constructor"', () => {
+  setTerms({ constructor: { id: 'constructor', he: 'בנאי', en: 'Constructor' } });
+  assert.equal(richText('[[constructor]]'), '<span class="term-ref" data-term="constructor">בנאי</span>');
+  setTerms({ veles: { id: 'veles', he: 'ולס', en: 'Veles' }, baal: { id: 'baal', he: 'בעל', en: 'Baal' } });
+});
+
+test('the "|" text may hold a single "]" (D2), so no raw markup is left', () => {
+  assert.equal(plainText('[[baal|a]b]] סוף'), 'a]b סוף');
+  assert.equal(richText('[[baal|a]b]]'), '<span class="term-ref" data-term="baal">a]b</span>');
+  assert.equal(plainText('[[baal|x]] ו[[veles|y]]'), 'x וy');
+});

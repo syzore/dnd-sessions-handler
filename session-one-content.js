@@ -28,7 +28,7 @@ const NOT_HERE = 'a term reference [[...]] is not allowed here (only in title, p
 const REF_STEP_KEYS = new Set(['title', 'prompt', 'hint']); // step keys whose text may hold [[term]] references
 
 // "[[id|text]]" -> "text", "[[id]]" -> "id": a label's text without markup, for the id slug.
-const unref = (s) => s.replace(/\[\[([^\]|]*)(?:\|([^\]]*))?\]\]/g, (_, id, text) => text ?? id);
+const unref = (s) => s.replace(/\[\[([^\]|]*)(?:\|((?:(?!\]\]).)*))?\]\]/g, (_, id, text) => text ?? id);
 const slug = (s) => unref(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 
 // HTML comments are notes for the author: blank them, keep line numbers.
@@ -59,7 +59,7 @@ export function parseLink(value, fail) {
 }
 
 // Check every [[...]] term reference in a file, line by line (comments already blanked).
-// allowed: the line numbers whose text may hold references. terms: { id: term }.
+// allowed: the line numbers whose text may hold references. terms: Map of id -> term.
 function checkRefs(lines, rel, allowed, terms) {
   lines.forEach((line, i) => {
     const n = i + 1;
@@ -77,7 +77,7 @@ function checkRefs(lines, rel, allowed, terms) {
       if (!id) throw new ContentError(`${rel} line ${n}: [[${inner}]]: a term reference needs a term id: [[id]] or [[id|text]]`);
       if (!REF_ID.test(id)) throw new ContentError(`${rel} line ${n}: [[${inner}]]: a term id is Latin lowercase letters, digits and _`);
       if (bar !== -1 && !inner.slice(bar + 1).trim()) throw new ContentError(`${rel} line ${n}: [[${inner}]]: the text after "|" is empty`);
-      if (!terms[id]) throw new ContentError(`${rel} line ${n}: [[${id}]]: there is no term "${id}" (terms/*.md)`);
+      if (!terms.has(id)) throw new ContentError(`${rel} line ${n}: [[${id}]]: there is no term "${id}" (terms/*.md)`);
       rest = rest.slice(end + 2);
     }
   });
@@ -395,20 +395,21 @@ export function loadContent(dir) {
   const relOf = (f) => path.relative(path.dirname(path.dirname(dir)), path.join(dir, f)); // content/session-one/...
 
   // Terms first: every other file's [[references]] are checked against them.
-  const terms = {};
+  // A Map, so ids like "constructor" or "__proto__" are not found on Object.prototype.
+  const terms = new Map();
   const termFiles = [];
   for (const f of mdFiles(path.join(dir, 'terms'))) {
     const rel = relOf(path.join('terms', f));
     const parsed = parseTermFile(read(dir, path.join('terms', f)), rel);
     for (const { line, id, he, en, category, aliases, images, links, blurb } of parsed.terms) {
       const t = { id, he, en, category, ...(aliases && { aliases }), images, links, ...(blurb && { blurb }) };
-      if (terms[t.id]) throw new ContentError(`${rel} line ${line}: term id "${t.id}" is used by another term (${terms[t.id].where})`);
-      terms[t.id] = { ...t, where: `${rel} line ${line}` };
+      if (terms.has(t.id)) throw new ContentError(`${rel} line ${line}: term id "${t.id}" is used by another term (${terms.get(t.id).where})`);
+      terms.set(t.id, { ...t, where: `${rel} line ${line}` });
     }
     termFiles.push([rel, parsed]);
   }
   for (const [rel, { lines, allowed }] of termFiles) checkRefs(lines, rel, allowed, terms);
-  for (const t of Object.values(terms)) delete t.where;
+  for (const t of terms.values()) delete t.where;
   const checked = (rel, parsed) => (checkRefs(parsed.lines, rel, parsed.allowed, terms), parsed);
 
   const lists = {};
@@ -434,7 +435,8 @@ export function loadContent(dir) {
   const ord = (c) => (c.order === undefined ? Infinity : Number(c.order));
   characters.sort((a, b) => ord(a) - ord(b));
   for (const c of characters) delete c.order;
-  return { commonLore: tidyStep(world.steps[0]), characters, terms };
+  // Object.fromEntries makes own properties, "__proto__" included.
+  return { commonLore: tidyStep(world.steps[0]), characters, terms: Object.fromEntries(terms) };
 }
 
 // What one viewer may see: the DM gets everything; a player gets only their
