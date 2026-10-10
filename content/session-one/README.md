@@ -18,7 +18,11 @@ If a file has a mistake, the page shows a message with the file name and line nu
 
 מריצים `npm test` לפני `railway up`. הבדיקה טוענת את כל התיקייה הזו ונכשלת על כל טעות בתוכן, כולל הפניה למונח שלא קיים.
 
+מריצים גם `npm run check-terms`: הוא פונה לכל תמונה וקישור של מונחים ולכל קישור של שלבים, ומציג את הקישורים השבורים עם קובץ ומספר שורה (יציאה 1). איטי, צריך רשת; 403/429 מאתרים שחוסמים בוטים מדווח כ-"blocked" ואינו נחשב כשל.
+
 Run `npm test` before `railway up`. It loads this whole folder and fails on any content mistake, including a reference to a term that does not exist.
+
+Run `npm run check-terms` too: it requests every term image and link and every step link, and lists dead ones with file and line (exit 1). Slow, needs network; 403/429 from bot-blocking hosts is reported as "blocked" and does not fail.
 
 ## ⚠️ מזהים / Ids
 
