@@ -2,8 +2,8 @@
 // The DOM behaviour (open, close, history, focus) is checked in a real browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setTerms, richText } from '../public/shared/terms.js';
-import { termPopupHtml, CATEGORY_LABELS } from '../public/shared/term-popup.js';
+import { setTerms, richText, optionLabel } from '../public/shared/terms.js';
+import { termPopupHtml, termInfoButton, CATEGORY_LABELS } from '../public/shared/term-popup.js';
 
 const veles = {
   id: 'veles', he: 'ולס', en: 'Veles', category: 'god', aliases: ['וֶלֶס', 'נחש-העולם'],
@@ -72,4 +72,29 @@ test('popup: links or an image with no blurb has no body section (F18)', () => {
   assert.doesNotMatch(h, /tp-body/);
   assert.match(h, /tp-img/);
   assert.match(h, /tp-links/);
+});
+
+// ---------------------------------------------------------------- option term: (D4)
+
+test('termInfoButton: an info button for a term with popup content, labelled "מידע על <name>"', () => {
+  const html = termInfoButton('baal');
+  assert.match(html, /^<button type="button" class="term-info" aria-haspopup="dialog" data-term-info="baal" aria-label="מידע על בעל"><svg /);
+  assert.doesNotMatch(html, /data-term=/, 'data-term would count the button as a mention for the English pass');
+});
+
+test('termInfoButton: nothing for an unknown term (F7) or a name-only term (F15)', () => {
+  assert.equal(termInfoButton('nope'), '');
+  assert.equal(termInfoButton('constructor'), '');
+  assert.equal(termInfoButton('named'), '');
+});
+
+test('optionLabel: with term:, the label is one inert mention of the term', () => {
+  assert.equal(optionLabel({ label: 'בעל', term: 'baal' }), '<span class="term-ref term-inert" data-term="baal">בעל</span>');
+  assert.equal(optionLabel({ label: 'האל <ה>[[veles]]', term: 'named' }),
+    '<span class="term-ref term-inert" data-term="named">האל &lt;ה&gt;<span class="term-ref term-inert" data-term="veles">ולס</span></span>');
+});
+
+test('optionLabel: no term, or a term the client lacks, is the plain inert label (F7)', () => {
+  assert.equal(optionLabel({ label: 'סתם [[baal]]' }), 'סתם <span class="term-ref term-inert" data-term="baal">בעל</span>');
+  assert.equal(optionLabel({ label: 'בעל', term: 'nope' }), 'בעל');
 });

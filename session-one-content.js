@@ -14,7 +14,7 @@ export class ContentError extends Error {}
 const STEP_TYPES = ['info', 'choice', 'text'];
 const BOOL = new Set(['multi', 'optional', 'other']);
 const STEP_KEYS = new Set(['title', 'prompt', 'hint', 'multi', 'optional', 'other', 'use']);
-const OPTION_KEYS = new Set(['id', 'subtitle']);
+const OPTION_KEYS = new Set(['id', 'subtitle', 'term']);
 const FRONT_KEYS = { id: 'id', name: 'name', class: 'cls', icon: 'icon', order: 'order' };
 
 const KEY_LINE = /^([a-z_]+):\s*(.*)$/;
@@ -170,7 +170,8 @@ function parseTermFile(text, rel) {
 
 // Parse one md file. kind: 'character' | 'world' | 'list'.
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
-function parseFile(text, rel, kind, lists = {}) {
+// terms: Map of id -> term, for option "term:" (D4).
+function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
   };
@@ -358,7 +359,7 @@ function parseFile(text, rel, kind, lists = {}) {
       continue;
     }
 
-    // option body: id:/subtitle: lines first, then the description paragraph(s)
+    // option body: id:/subtitle:/term: lines first, then the description paragraph(s)
     const o = section;
     const m = !para && !o.paras.length && l.match(KEY_LINE);
     if (m && OPTION_KEYS.has(m[1])) {
@@ -367,6 +368,10 @@ function parseFile(text, rel, kind, lists = {}) {
       o[m[1]] = m[2].trim();
       if (m[1] === 'subtitle') allowed.add(n);
       if (m[1] === 'id' && !/^[a-z0-9_]+$/.test(o.id)) fail(n, 'an option id is Latin lowercase letters, digits and _');
+      if (m[1] === 'term') {
+        if (!o.term) fail(n, '"term:" needs a term id');
+        if (!terms.has(o.term)) fail(n, `"term: ${o.term}": there is no term "${o.term}" (terms/*.md)`);
+      }
       continue;
     }
     allowed.add(n);
@@ -415,20 +420,20 @@ export function loadContent(dir) {
   const lists = {};
   for (const f of mdFiles(path.join(dir, 'lists'))) {
     const rel = path.join('lists', f);
-    const { steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'list'));
+    const { steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'list', {}, terms));
     const { id, type, options, bullets, ...keys } = steps[0];
     lists[f.slice(0, -3)] = { keys, options, bullets };
   }
 
   if (!fs.existsSync(path.join(dir, 'world.md'))) throw new ContentError(`${relOf('world.md')}: file is missing`);
-  const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists));
+  const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists, terms));
   if (world.steps.length !== 1 || world.steps[0].type !== 'info')
     throw new ContentError(`${relOf('world.md')}: holds exactly one "## info: <id>" step`);
 
   const characters = [];
   for (const f of mdFiles(path.join(dir, 'characters'))) {
     const rel = path.join('characters', f);
-    const { front, steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'character', lists));
+    const { front, steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'character', lists, terms));
     if (characters.some((c) => c.id === front.id)) throw new ContentError(`${relOf(rel)}: character id "${front.id}" is used by another file`);
     characters.push({ ...front, steps: steps.map(tidyStep) });
   }

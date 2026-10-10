@@ -175,6 +175,18 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .opt-card { align-items: flex-start; padding: 18px 16px; }
 .opt-emoji { font-size: 40px; line-height: 1; flex: none; width: 52px; text-align: center; }
 .opt-desc { font-size: 16px; line-height: 1.55; color: var(--text); opacity: .85; margin-top: 6px; }
+/* a card whose option has `term:`: the info button sits beside the option button (a sibling,
+   never inside it, D4), over the card's left column under the check mark */
+.opt-wrap { position: relative; display: grid; }
+.opt-wrap > .opt { padding-left: 58px; }
+.term-info {
+  position: absolute; left: 8px; bottom: 8px;
+  width: 40px; height: 40px; padding: 8px;
+  border-radius: 50%; border: 1px solid var(--line); background: var(--bg2);
+  color: var(--gold); cursor: pointer; transition: border-color .15s;
+}
+.term-info:hover { border-color: var(--gold); }
+.term-info:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .step-intro { margin-top: 10px; max-width: 560px; }
 .lore-wrap { display: grid; gap: 16px; max-width: 560px; }
 .lore { border-radius: var(--radius); padding: 18px 16px; border: 2px solid var(--line); background: var(--card); }

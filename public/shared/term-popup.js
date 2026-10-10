@@ -5,7 +5,7 @@
 // termPopupHtml() is pure (node:test imports it). initTermPopup() touches the DOM.
 import { esc } from './lib.js';
 import { icon } from './icons.js';
-import { termOf, richText, addEnglish } from './terms.js';
+import { termOf, richText, addEnglish, hasPopup } from './terms.js';
 
 export const CATEGORY_LABELS = {
   race: 'גזע',
@@ -19,6 +19,9 @@ export const CATEGORY_LABELS = {
 };
 const MAX_STACK = 10;
 const NAME_ID = 'term-pop-name';
+// What opens the popup from the page: a term reference in text, or a choice card's info button.
+const TRIGGER = 'button.term[data-term], button.term-info[data-term-info]';
+const triggerId = (el) => el.dataset.term ?? el.dataset.termInfo;
 
 const host = (url) => {
   try {
@@ -58,6 +61,16 @@ export function termPopupHtml(t, { canBack = false } = {}) {
       ${t.aliases?.length ? `<p class="tp-aka">נקרא גם: ${t.aliases.map(esc).join(', ')}</p>` : ''}
     </header>
     ${img}${blurb}${links}`;
+}
+
+// The info button beside a choice card whose option says `term:` (D4). It sits next to the
+// option <button>, never inside it. Empty when the client lacks the term (F7) or the term
+// is name-only and has no popup (F15). data-term-info, not data-term: the English pass
+// counts data-term elements as mentions.
+export function termInfoButton(id) {
+  const t = termOf(id);
+  if (!hasPopup(t)) return '';
+  return `<button type="button" class="term-info" aria-haspopup="dialog" data-term-info="${esc(id)}" aria-label="${esc(`מידע על ${t.he}`)}">${icon('info')}</button>`;
 }
 
 let dialog = null;
@@ -158,7 +171,7 @@ function finish() {
 // (elementsFromPoint returns only the dialog and <html>), so compare the term boxes.
 // getClientRects: a term can wrap onto two lines.
 function pageTermAt(x, y) {
-  for (const el of document.querySelectorAll('button.term[data-term]')) {
+  for (const el of document.querySelectorAll(TRIGGER)) {
     if (dialog.contains(el)) continue;
     for (const r of el.getClientRects()) {
       if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
@@ -187,7 +200,7 @@ export function initTermPopup() {
     if (e.target === dialog && downOnBackdrop) {
       // showModal() makes the page inert, so a tap on another page term lands here (F23).
       const ref = pageTermAt(e.clientX, e.clientY);
-      return ref ? open(ref.dataset.term, ref) : close();
+      return ref ? open(triggerId(ref), ref) : close();
     }
     if (e.target.closest('.tp-close')) return close();
     if (e.target.closest('.tp-back')) {
@@ -202,8 +215,8 @@ export function initTermPopup() {
   });
   // Triggers on the page (the dialog's own clicks are handled above).
   document.addEventListener('click', (e) => {
-    const ref = e.target.closest('button.term[data-term]');
-    if (ref) open(ref.dataset.term, ref);
+    const ref = e.target.closest(TRIGGER);
+    if (ref) open(triggerId(ref), ref);
   });
   // Browser / Android back while open: close, stay on the page.
   window.addEventListener('popstate', () => {

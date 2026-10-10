@@ -28,3 +28,30 @@ link: Welcome to Midgard: The Great Serpent (Kobold Press) — https://koboldpre
 link: Ouroboros (Wikipedia) — https://en.wikipedia.org/wiki/Ouroboros
 
 ולס הוא נחש-העולם, נחש ענק שנושך את זנבו ומקיף את מידגארד. הגאות והשפל הם הנשימה שלו, והסערות הן הנחירות שלו. הוא "אבי הנחשים" והפטרון של ענקים ודרקונים. בצפון קוראים לו יורמונגנדר, ובצומת ובמערב אורובורוס. המהארוטים מאמינים שהדרקונים נבראו בצלמו ונועדו לשלוט בעולם.
+
+<!-- Minimal name-only entries for the five gods in lists/gods.md (ticket 03). Ticket 06 replaces each with the full draft entry of the same id. -->
+
+### בהאמוט
+id: bahamut
+en: Bahamut
+category: god
+
+### לאת'נדר
+id: lathander
+en: Lathander
+category: god
+
+### טורם
+id: torm
+en: Torm
+category: god
+
+### סלונה
+id: selune
+en: Selûne
+category: god
+
+### אילמטר
+id: ilmater
+en: Ilmater
+category: god

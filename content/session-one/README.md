@@ -81,6 +81,10 @@ optional: true
 
 Each option is `### <emoji> <label>`. Under it: `id:` (required when the label is Hebrew), an optional `subtitle:`, then a blank line and the description paragraph(s). Options with a description render as cards. The emoji is optional.
 
+**`term: <id>`** (אם רוצים) מקשר את האפשרות למונח מ-`terms/` (ראו "מונחים" למטה). ליד הכרטיס מופיע כפתור מידע (ⓘ) שפותח את חלון המונח, בלי לבחור את הכרטיס, והשם מקבל את האנגלית: "בהאמוט (Bahamut)". **לא כותבים את האנגלית בסוגריים בשם האפשרות** (`### חייל (Soldier)`): היא תופיע פעמיים. מזהה מונח שלא קיים הוא טעות. מונח בלי תיאור, תמונה וקישור מוסיף רק את האנגלית, בלי כפתור מידע.
+
+**`term: <id>`** (optional) links the option to a term in `terms/` (see "Terms" below). The card gets an info button (ⓘ) beside it that opens the term popup without selecting the card, and the label gets the English name: "בהאמוט (Bahamut)". **Do not type the English in parentheses in the label** (`### חייל (Soldier)`): it would show twice. An unknown term id is a mistake. A name-only term (no blurb, image or link) adds only the English, with no info button.
+
 ```markdown
 ## choice: allegiance
 prompt: עם מי אתה נלחם?
@@ -145,6 +149,7 @@ prompt: אז מי מדבר אליכם?
 
 ### 🐉 בהאמוט
 id: bahamut
+term: bahamut
 subtitle: דרקון הפלטינה
 
 אל הצדק, הכבוד, ההגנה והדרקונים הטובים.
@@ -216,7 +221,7 @@ In the text, write `[[id]]` and the page shows the term's Hebrew name. When the 
 - דת המדינה היא אלי הדרקונים, [[baal]] ו[[veles|וֶלֶס]].
 ```
 
-- **איפה מותר / Where allowed:** `title`, `prompt`, `hint`, פריטי לור (כותרת וטקסט, גם ב-`lists/`), שם אפשרות, `subtitle` ותיאור, ותיאור של מונח. בשום מקום אחר (front matter, `id`, `use`, מפתחות של מונח) / `title`, `prompt`, `hint`, lore bullets (title and text, `lists/` too), option label, `subtitle` and description, and term blurbs. Nowhere else (front matter, `id`, `use`, term keys).
+- **איפה מותר / Where allowed:** `title`, `prompt`, `hint`, פריטי לור (כותרת וטקסט, גם ב-`lists/`), שם אפשרות, `subtitle` ותיאור, ותיאור של מונח. בשום מקום אחר (front matter, `id`, `use`, `term` של אפשרות, מפתחות של מונח) / `title`, `prompt`, `hint`, lore bullets (title and text, `lists/` too), option label, `subtitle` and description, and term blurbs. Nowhere else (front matter, `id`, `use`, option `term`, term keys).
 - **הפניה מתחילה ונגמרת באותה שורה / A reference starts and ends on one line.**
 - **מזהה שלא קיים הוא טעות / An unknown id is a mistake:** הדף מציג את הודעת השגיאה עם קובץ ושורה, ו-`npm test` נכשל / the page shows the error with file and line, and `npm test` fails.
 - **הדף לא מחפש שמות בטקסט / The page never searches the text for names:** רק מה שמסומן ב-`[[...]]` הוא הפניה / only `[[...]]` marks a reference.

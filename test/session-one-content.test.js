@@ -186,6 +186,38 @@ test('F4: bad term id, unknown key, emoji heading, text before the first term', 
   fails({ 'terms/x.md': `טקסט\n\n${termFile()}` }, 'content/session-one/terms/x.md line 1: text before the first "### <Hebrew name>" term heading');
 });
 
+// ---------------------------------------------------------------- option term: (D4, F3, F6)
+
+test('option "term:" links an option to a term, in a step and in a list', () => {
+  const c = load({
+    'characters/a.md': replace('id: snake\n', 'id: snake\nterm: veles\n'),
+    'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm: baal\n'),
+  });
+  const [, pick, god] = c.characters[0].steps;
+  assert.equal(pick.options[0].term, 'veles');
+  assert.equal(god.options[0].term, 'baal');
+});
+
+test('an option without "term:" has no term key', () => {
+  assert.equal('term' in load().characters[0].steps[1].options[0], false);
+});
+
+test('F6: option "term:" names an unknown term, with file and line', () => {
+  fails({ 'characters/a.md': replace('id: snake\n', 'id: snake\nterm: nope\n') }, 'content/session-one/characters/a.md line 26: "term: nope": there is no term "nope" (terms/*.md)');
+  fails({ 'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm: nope\n') }, 'content/session-one/lists/gods.md line 6: "term: nope": there is no term "nope" (terms/*.md)');
+  fails({ 'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm: constructor\n') }, 'content/session-one/lists/gods.md line 6: "term: constructor": there is no term "constructor" (terms/*.md)');
+  fails({ 'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm:\n') }, 'content/session-one/lists/gods.md line 6: "term:" needs a term id');
+});
+
+test('F3: a reference in an option "term:" value', () => {
+  fails({ 'characters/a.md': replace('id: snake\n', 'id: snake\nterm: [[veles]]\n') }, `content/session-one/characters/a.md line 26: ${NOT_HERE}`);
+  fails({ 'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm: [[baal]]\n') }, `content/session-one/lists/gods.md line 6: ${NOT_HERE}`);
+});
+
+test('option "term:" appears once per option', () => {
+  fails({ 'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm: baal\nterm: veles\n') }, 'content/session-one/lists/gods.md line 7: "term:" appears twice in this option');
+});
+
 // ---------------------------------------------------------------- F5: URLs
 
 test('F5: image and link URLs must be https', () => {

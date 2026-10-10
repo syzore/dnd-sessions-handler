@@ -46,6 +46,14 @@ export function richText(str, { inert = false, self = null } = {}) {
   return out + esc(s.slice(last));
 }
 
+// An option label (D4): plain text, because it sits inside the option <button>. With
+// `term:`, the whole label counts as a mention of that term for the English rule, so the
+// card reads "בהאמוט (Bahamut)". A `term:` the client does not have adds nothing (F7).
+export function optionLabel(o) {
+  const html = richText(o.label, { inert: true });
+  return o.term && termOf(o.term) ? `<span class="term-ref term-inert" data-term="${esc(o.term)}">${html}</span>` : html;
+}
+
 // First-mention English (D5): in document order, the first reference to each term
 // inside `scope` gets " (English)" after it. Run once per screen, after the HTML is built.
 // A nested element marked data-term-scope is its own scope and is skipped here.

@@ -1,7 +1,7 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
-import { setTerms, richText, plainText, addEnglishAll } from '/shared/terms.js';
-import { initTermPopup } from '/shared/term-popup.js';
+import { setTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
+import { initTermPopup, termInfoButton } from '/shared/term-popup.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -13,6 +13,13 @@ const base = (code) => `/session-one/${code}`;
 
 // Content text goes through richText (HTML) or plainText (attributes, labels):
 // raw [[term]] markup never reaches the screen. Each screen then gets its first-mention English.
+// A choice card whose option says `term:` gets an info button beside it, not inside the
+// option <button> (D4). Player flow and DM compendium share the layout.
+function withInfo(o, card) {
+  const info = o.term ? termInfoButton(o.term) : '';
+  return info ? `<div class="opt-wrap">${card}${info}</div>` : card;
+}
+
 function screen(html) {
   $app.innerHTML = html;
   addEnglishAll($app);
@@ -312,16 +319,16 @@ function renderStep(i) {
     st.type === 'info'
       ? loreHtml(st)
       : st.type === 'choice'
-      ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => `
+      ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => withInfo(o, `
           <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}">
             ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
             <span class="opt-text">
-              <span class="opt-label">${richText(o.label, { inert: true })}</span>
+              <span class="opt-label">${optionLabel(o)}</span>
               ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
               ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
             </span>
             <span class="opt-check">${icon('check')}</span>
-          </button>`).join('')}</div>${withOther ? `
+          </button>`)).join('')}</div>${withOther ? `
         <label class="other-box"><span>משהו אחר / לכתוב בעצמי</span>
           <textarea class="big-text" id="other" rows="3" maxlength="1000">${esc(state.answers[otherKey] || '')}</textarea></label>` : ''}`
       : `<textarea class="big-text" id="ans" rows="5" maxlength="2000">${esc(cur)}</textarea>`;
@@ -487,15 +494,15 @@ async function renderLore(code) {
   if (!data.isAdmin) {
     return screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
   }
-  const card = (o) => `
+  const card = (o) => withInfo(o, `
     <div class="opt opt-card">
       ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
       <span class="opt-text">
-        <span class="opt-label">${richText(o.label, { inert: true })}</span>
+        <span class="opt-label">${optionLabel(o)}</span>
         ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
         ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
       </span>
-    </div>`;
+    </div>`);
   const stepHtml = (c, st) => {
     const tags = [
       st.type === 'info' ? 'מידע' : st.type === 'choice' ? (st.multi ? 'בחירה מרובה' : 'בחירה') : 'שאלה פתוחה',
