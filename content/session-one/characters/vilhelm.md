@@ -83,6 +83,30 @@ id: acid
 ### ⚡ ברק
 id: lightning
 
+### ❄️ קור
+id: cold
+subtitle: Cold
+
+### 💥 רעם
+id: thunder
+subtitle: Thunder
+
+### 🔮 כוח טהור
+id: force
+subtitle: Force
+
+### 🐍 רעל
+id: poison
+subtitle: Poison
+
+### 💀 אנרגיה שלילית
+id: necrotic
+subtitle: Necrotic
+
+### 🧠 נפשי
+id: psychic
+subtitle: Psychic
+
 ### ✨ אחר
 id: other
 
