@@ -527,7 +527,7 @@ async function s1Api(req, res, parts, url) {
     const pid = url.searchParams.get('pid');
     const taken = {};
     for (const [id, p] of Object.entries(players)) if (id !== pid && p.character) taken[p.character] = p.name;
-    const all = Object.values(players).sort((a, b) => a.createdAt - b.createdAt);
+    const all = Object.entries(players).map(([id, p]) => ({ id, ...p })).sort((a, b) => a.createdAt - b.createdAt);
     return json(res, 200, {
       code: s.code,
       title: s.title,
@@ -561,6 +561,15 @@ async function s1Api(req, res, parts, url) {
       done: body.done ?? prev.done ?? false,
       updatedAt: Date.now(),
     };
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  // DELETE /api/s1/:code/players/:pid?key=  (DM only; frees the character)
+  if (req.method === 'DELETE' && parts[3] === 'players' && parts[4]) {
+    if (!isAdmin) return json(res, 403, { error: 'forbidden' });
+    if (!players[parts[4]]) return json(res, 404, { error: 'not found' });
+    delete players[parts[4]];
     save();
     return json(res, 200, { ok: true });
   }

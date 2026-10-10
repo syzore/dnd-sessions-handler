@@ -461,6 +461,7 @@ async function renderDm(code) {
             ${p.choice === 'rename' ? `<div><dt>שם חדש</dt><dd>${esc(p.newName) || '—'}</dd></div>` : ''}
             ${answers.map(([q, a]) => `<div><dt>${esc(q)}</dt><dd>${esc(Array.isArray(a) ? a.join(', ') : a) || '—'}</dd></div>`).join('')}
           </dl>
+          <button class="cta ghost danger dm-del" data-pid="${esc(p.id)}">מחיקה</button>
         </details>`;
     })
     .join('');
@@ -478,6 +479,27 @@ async function renderDm(code) {
       </div>
     </main>`);
   copyButton('share', `${location.origin}${base(code)}`);
+  // Delete: first tap arms ("בטוח?"), second tap deletes; disarms after 4s or on a tap elsewhere.
+  let armed = null;
+  const disarm = () => {
+    if (!armed) return;
+    armed.btn.textContent = 'מחיקה';
+    clearTimeout(armed.timer);
+    armed = null;
+  };
+  document.querySelectorAll('.dm-del').forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      if (armed?.btn === btn) {
+        await api('DELETE', `/api/s1/${code}/players/${encodeURIComponent(btn.dataset.pid)}?key=${encodeURIComponent(key)}`);
+        return renderDm(code);
+      }
+      disarm();
+      btn.textContent = 'בטוח?';
+      armed = { btn, timer: setTimeout(disarm, 4000) };
+    };
+  });
+  document.addEventListener('click', disarm, { once: true });
 }
 
 // ---------------------------------------------------------------- DM lore compendium
