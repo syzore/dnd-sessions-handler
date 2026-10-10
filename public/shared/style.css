@@ -34,6 +34,14 @@ a { color: inherit; }
 .muted { color: var(--muted); font-weight: 400; }
 /* Session One term references: the English after a term's first mention on a screen (D5) */
 .term-en { color: var(--muted); font-weight: 400; font-size: 0.85em; unicode-bidi: isolate; white-space: nowrap; }
+/* a term reference that opens the term popup (D6): a text link, not a button look */
+.term {
+  display: inline; padding: 0; margin: 0; border: 0; background: none;
+  font: inherit; color: var(--gold); cursor: pointer; text-align: inherit;
+  text-decoration: underline dotted 1px; text-underline-offset: 0.2em;
+}
+.term:hover { text-decoration-style: solid; }
+.term:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 3px; }
 
 /* ---------- icons ---------- */
 .ic { width: 100%; height: 100%; display: block; }
@@ -532,3 +540,50 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .preset.on .ic { color: #1b1408; }
 .ai-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
 .ai-row .ai-toggle { flex: 1 1 240px; }
+
+/* =================================================== term popup (shared/term-popup.js) */
+html.tp-lock, html.tp-lock body { overflow: hidden; }
+.term-pop {
+  padding: 0; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card); color: var(--text);
+  width: calc(100% - 32px); max-width: 480px; max-height: min(85vh, 760px);
+  overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,.55);
+}
+.term-pop[open] { display: flex; flex-direction: column; }
+.term-pop::backdrop { background: rgba(10, 7, 14, .72); }
+.tp-sheet { overflow-y: auto; overscroll-behavior: contain; flex: 1; min-height: 0; padding-bottom: 20px; }
+.tp-head {
+  position: sticky; top: 0; z-index: 1;
+  padding: 14px 20px 12px; background: var(--card); border-bottom: 1px solid var(--line);
+}
+.tp-bar { float: left; display: flex; gap: 8px; margin: 0 8px 4px 0; }
+.tp-bar .icon-btn { width: 40px; height: 40px; padding: 9px; background: var(--bg2); }
+.tp-head .kicker { font-size: 13px; }
+.tp-name { margin: 2px 0 0; font-family: var(--serif); font-weight: 900; font-size: 30px; line-height: 1.15; color: var(--gold); }
+.tp-en { color: var(--muted); font-size: 16px; text-align: right; }
+.tp-aka { margin: 6px 0 0; color: var(--muted); font-size: 14px; clear: both; }
+.tp-img { height: 240px; background: var(--bg2); }
+.tp-img img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.tp-img:not(.loaded) img { opacity: 0; }
+.tp-img.loaded img { opacity: 1; transition: opacity .2s; }
+.tp-body { padding: 16px 20px 0; }
+.tp-body p { margin: 0 0 12px; font-size: 17px; line-height: 1.65; }
+.tp-links { padding: 8px 20px 0; }
+.tp-links h3 { margin: 0 0 8px; font-family: var(--serif); font-size: 18px; color: var(--gold); }
+.tp-links ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tp-links a {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--bg2); text-decoration: none;
+}
+.tp-links a:hover { border-color: #56476b; }
+.tp-links a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tp-link-text { flex: 1; font-weight: 500; }
+.tp-link-host { color: var(--muted); font-size: 13px; }
+.tp-link-ic { width: 18px; height: 18px; flex: none; color: var(--gold); }
+@media (max-width: 560px) {
+  .term-pop {
+    width: 100%; max-width: 100%; max-height: 85vh;
+    margin: auto 0 0; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .tp-sheet { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+}

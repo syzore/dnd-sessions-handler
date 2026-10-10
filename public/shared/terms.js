@@ -19,10 +19,16 @@ const display = (id, text) => text ?? termOf(id)?.he ?? id;
 // Display text with no markup: for buttons' attributes, DM answer labels, <title>.
 export const plainText = (str) => String(str ?? '').replace(REF, (_, id, text) => display(id, text));
 
-// Escaped HTML with each known reference wrapped in a span the English pass can find.
-// Unknown ids render as plain text, with no span and so no English (F7).
-// inert: inside a control (an option <button>): never a link, only text (D4).
-export function richText(str, { inert = false } = {}) {
+// A name-only term (no blurb, image or link) has nothing to show in a popup (F15).
+export const hasPopup = (t) => !!(t && (t.blurb || t.images?.length || t.links?.length));
+
+// Escaped HTML with each known reference marked [data-term] for the English pass.
+// - a term with popup content: a trigger button the term popup opens from (D6)
+// - a name-only term, or any term when inert: a plain span (F15, D4)
+// - an unknown id (F7), or a reference to `self` (the popup's own term, F16): plain text,
+//   with no data-term and so no English
+// inert: inside a control (an option <button>, a <summary>): never a link, only text (D4).
+export function richText(str, { inert = false, self = null } = {}) {
   const s = String(str ?? '');
   let out = '';
   let last = 0;
@@ -31,7 +37,11 @@ export function richText(str, { inert = false } = {}) {
     out += esc(s.slice(last, m.index));
     last = m.index + whole.length;
     const shown = esc(display(id, text));
-    out += termOf(id) ? `<span class="term-ref${inert ? ' term-inert' : ''}" data-term="${esc(id)}">${shown}</span>` : shown;
+    const t = termOf(id);
+    if (!t || id === self) out += shown;
+    else if (!inert && hasPopup(t))
+      out += `<button type="button" class="term term-ref" aria-haspopup="dialog" data-term="${esc(id)}">${shown}</button>`;
+    else out += `<span class="term-ref${inert ? ' term-inert' : ''}" data-term="${esc(id)}">${shown}</span>`;
   }
   return out + esc(s.slice(last));
 }

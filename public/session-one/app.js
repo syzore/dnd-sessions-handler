@@ -1,6 +1,7 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
 import { setTerms, richText, plainText, addEnglishAll } from '/shared/terms.js';
+import { initTermPopup } from '/shared/term-popup.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -536,4 +537,5 @@ async function renderLore(code) {
     </main>`);
 }
 
+initTermPopup(); // term references open one shared popup (D6)
 route();

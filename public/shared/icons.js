@@ -58,6 +58,7 @@ const I = {
   copy: '<rect x="15" y="15" width="24" height="26" rx="4"/><path d="M9 33V11a4 4 0 0 1 4-4h18"/>',
   link: '<path d="M20 28l8-8"/><path d="M22 14l3-3a7 7 0 0 1 10 10l-3 3M26 34l-3 3a7 7 0 0 1-10-10l3-3"/>',
   x: '<path d="M13 13l22 22M35 13L13 35"/>',
+  external: '<path d="M28 8h12v12M40 8L22 26"/><path d="M34 28v10a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3V18a3 3 0 0 1 3-3h10"/>',
   maybe: '<path d="M18 17a6 6 0 1 1 8 5.6c-1.3.6-2 1.6-2 3V28"/><circle cx="24" cy="34" r="1.6" fill="currentColor"/>',
   calendar:
     '<rect class="fl" x="6" y="10" width="36" height="32" rx="5"/><path d="M6 19h36M15 6v8M33 6v8"/><circle cx="16" cy="27" r="1.8" fill="currentColor"/><circle cx="24" cy="27" r="1.8" fill="currentColor"/><circle cx="32" cy="27" r="1.8" fill="currentColor"/><circle cx="16" cy="34" r="1.8" fill="currentColor"/><circle cx="24" cy="34" r="1.8" fill="currentColor"/>',
