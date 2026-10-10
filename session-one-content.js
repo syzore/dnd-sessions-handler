@@ -18,7 +18,7 @@ const OPTION_KEYS = new Set(['id', 'subtitle', 'term']);
 const FRONT_KEYS = { id: 'id', name: 'name', class: 'cls', icon: 'icon', order: 'order' };
 
 const KEY_LINE = /^([a-z_]+):\s*(.*)$/;
-const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+export const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 const TERM_KEYS = new Set(['id', 'en', 'category', 'aliases', 'image', 'link']);
 const TERM_REPEAT = new Set(['image', 'link']);
 export const TERM_CATEGORIES = ['race', 'class', 'place', 'god', 'faction', 'person', 'concept', 'background'];
@@ -85,7 +85,7 @@ function checkRefs(lines, rel, allowed, terms) {
 
 // Parse one terms/*.md file: "### <Hebrew name>", key lines, a blank line, blurb paragraphs.
 // Returns { terms: [{ ...term, line }], allowed: Set of blurb line numbers }.
-function parseTermFile(text, rel) {
+function parseTermFile(text, rel, key, withSrc) {
   const lines = linesOf(text);
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
@@ -120,7 +120,7 @@ function parseTermFile(text, rel) {
       noRef(n, he);
       if (!he) fail(n, 'a term heading is "### <Hebrew name>"');
       if (EMOJI.test(he.split(/\s+/)[0]) && !/\p{L}/u.test(he.split(/\s+/)[0])) fail(n, 'a term heading has no emoji, only the Hebrew name');
-      t = { line: n, he, images: [], links: [], paras: [] };
+      t = { line: n, he, images: [], links: [], paras: [], ...(withSrc && { src: { name: { file: key, line: n } } }) };
       continue;
     }
     if (/^##/.test(raw)) fail(n, 'a term file holds "### <Hebrew name>" terms only, no ## steps');
@@ -159,9 +159,11 @@ function parseTermFile(text, rel) {
         if (!v) fail(n, `"${k}:" is empty`);
         t[k] = v;
       }
+      if (withSrc && (k === 'en' || (k === 'aliases' && t.aliases))) t.src[k] = { file: key, line: n };
       continue;
     }
     allowed.add(n);
+    if (withSrc && !para && !t.paras.length) t.src.blurb = { file: key, line: n };
     (para ||= []).push(l);
   }
   endTerm();
@@ -171,7 +173,7 @@ function parseTermFile(text, rel) {
 // Parse one md file. kind: 'character' | 'world' | 'list'.
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
 // terms: Map of id -> term, for option "term:" (D4).
-function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
+function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc } = {}) {
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
   };
@@ -234,7 +236,9 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
       const list = lists[step.use];
       if (!list) fail(n, `"use: ${step.use}" but there is no lists/${step.use}.md`);
       if (step.options) fail(n, 'a step with "use:" takes its options from the list; remove the ### options here');
+      const src = withSrc && { ...list.keys.src, ...step.src };
       Object.assign(step, { ...list.keys, ...step, options: list.options });
+      if (withSrc && Object.keys(src).length) step.src = src;
       delete step.use;
     }
     if (step.type === 'choice' && !step.options?.length && !step.bullets) fail(n, 'a choice step needs ### options (or "use: <list>")');
@@ -298,7 +302,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
       // choice option: ### <emoji?> <label>
       const [first, ...rest] = h.split(/\s+/);
       const hasEmoji = rest.length && EMOJI.test(first) && !/\p{L}/u.test(first);
-      const o = { line: n, paras: [], label: hasEmoji ? rest.join(' ') : h };
+      const o = { line: n, paras: [], label: hasEmoji ? rest.join(' ') : h, ...(withSrc && { src: { label: { file: key, line: n } } }) };
       allowed.add(n);
       if (hasEmoji) o.emoji = first;
       if (!o.label) fail(n, 'an option heading needs a label after the emoji');
@@ -337,6 +341,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
         v = parseLink(v, (msg) => fail(n, msg));
       }
       if (REF_STEP_KEYS.has(m[1])) allowed.add(n);
+      if (withSrc && REF_STEP_KEYS.has(m[1])) (step.src ||= {})[m[1]] = { file: key, line: n };
       step[m[1]] = v;
       continue;
     }
@@ -357,6 +362,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
         const b = l.slice(2).trim();
         const m = b.match(/^\*\*(.+?)\*\*\s*(.*)$/);
         item = m ? { line: n, title: m[1].trim(), text: m[2] } : { line: n, text: b };
+        if (withSrc) item.src = { bullet: { file: key, line: n } };
         step[section].push(item);
       } else if (item) item.text = item.text ? `${item.text} ${l}` : l;
       else fail(n, 'lore lines start with "- " (optionally "- **title** text")');
@@ -370,7 +376,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
       if (m[1] !== 'subtitle') noRef(n, l);
       if (o[m[1]] !== undefined) fail(n, `"${m[1]}:" appears twice in this option`);
       o[m[1]] = m[2].trim();
-      if (m[1] === 'subtitle') allowed.add(n);
+      if (m[1] === 'subtitle') (allowed.add(n), withSrc && (o.src.subtitle = { file: key, line: n }));
       if (m[1] === 'id' && !/^[a-z0-9_]+$/.test(o.id)) fail(n, 'an option id is Latin lowercase letters, digits and _');
       if (m[1] === 'term') {
         if (!o.term) fail(n, '"term:" needs a term id');
@@ -379,6 +385,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
       continue;
     }
     allowed.add(n);
+    if (withSrc && !para && !o.src.description) o.src.description = { file: key, line: n };
     (para ||= []).push(l);
   }
   endStep();
@@ -402,7 +409,7 @@ const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(rest.optio
 // Read and parse the whole content folder. Throws ContentError.
 // override: { file: 'terms/x.md', text } parses with that file's text replaced (or added),
 // without touching the disk.
-export function loadContent(dir, { override } = {}) {
+export function loadContent(dir, { override, src } = {}) {
   const isOver = (rel) => override && rel.split(path.sep).join('/') === override.file;
   const read = (d, rel) => (isOver(rel) ? override.text : readDisk(d, rel));
   const mdFiles = (d) => {
@@ -422,9 +429,9 @@ export function loadContent(dir, { override } = {}) {
   const termFiles = [];
   for (const f of mdFiles(path.join(dir, 'terms'))) {
     const rel = relOf(path.join('terms', f));
-    const parsed = parseTermFile(read(dir, path.join('terms', f)), rel);
-    for (const { line, id, he, en, category, aliases, images, links, blurb } of parsed.terms) {
-      const t = { id, he, en, category, ...(aliases && { aliases }), images, links, ...(blurb && { blurb }) };
+    const parsed = parseTermFile(read(dir, path.join('terms', f)), rel, `terms/${f}`, src);
+    for (const { line, id, he, en, category, aliases, images, links, blurb, src: tsrc } of parsed.terms) {
+      const t = { id, he, en, category, ...(aliases && { aliases }), images, links, ...(blurb && { blurb }), ...(tsrc && { src: tsrc }) };
       if (terms.has(t.id)) throw new ContentError(`${rel} line ${line}: term id "${t.id}" is used by another term (${terms.get(t.id).where})`);
       terms.set(t.id, { ...t, where: `${rel} line ${line}` });
     }
@@ -437,20 +444,20 @@ export function loadContent(dir, { override } = {}) {
   const lists = {};
   for (const f of mdFiles(path.join(dir, 'lists'))) {
     const rel = path.join('lists', f);
-    const { steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'list', {}, terms));
+    const { steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'list', {}, terms, { key: `lists/${f}`, src }));
     const { id, type, options, bullets, ...keys } = steps[0];
     lists[f.slice(0, -3)] = { keys, options, bullets };
   }
 
   if (!fs.existsSync(path.join(dir, 'world.md')) && !isOver('world.md')) throw new ContentError(`${relOf('world.md')}: file is missing`);
-  const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists, terms));
+  const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists, terms, { key: 'world.md', src }));
   if (world.steps.length !== 1 || world.steps[0].type !== 'info')
     throw new ContentError(`${relOf('world.md')}: holds exactly one "## info: <id>" step`);
 
   const characters = [];
   for (const f of mdFiles(path.join(dir, 'characters'))) {
     const rel = path.join('characters', f);
-    const { front, steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'character', lists, terms));
+    const { front, steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'character', lists, terms, { key: `characters/${f}`, src }));
     if (characters.some((c) => c.id === front.id)) throw new ContentError(`${relOf(rel)}: character id "${front.id}" is used by another file`);
     characters.push({ ...front, steps: steps.map(tidyStep) });
   }

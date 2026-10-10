@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI, ApiError as GeminiApiError } from '@google/genai';
 import { loadContent, contentFor, ContentError } from './session-one-content.js';
-import { fileVersions, pathOf, saveFile, splitError, versionOf } from './lore-edit.js';
+import { editFields, fileVersions, pathOf, saveFile, splitError, versionOf } from './lore-edit.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -513,7 +513,7 @@ async function s1Api(req, res, parts, url) {
     const gated = LORE_EDIT && isAdmin;
     let content;
     try {
-      content = loadContent(S1_CONTENT_DIR);
+      content = loadContent(S1_CONTENT_DIR, gated ? { src: true } : {});
     } catch (e) {
       if (e instanceof ContentError) {
         const { file, line } = splitError(S1_CONTENT_DIR, e.message);
@@ -547,6 +547,15 @@ async function s1Api(req, res, parts, url) {
       const r = saveFile(S1_CONTENT_DIR, { ...body, create: req.method === 'POST' });
       return json(res, r.status, r.body);
     }
+  }
+
+  // PUT /api/s1/lore-field?code=&key=  { file, hash, edits: [{ line, field, value }] }
+  if (parts[2] === 'lore-field' && parts.length === 3 && req.method === 'PUT') {
+    if (!LORE_EDIT) return json(res, 404, { error: 'not found' });
+    const ds = db.sessions[String(url.searchParams.get('code') || '').toUpperCase()];
+    if (!ds || url.searchParams.get('key') !== ds.adminKey) return json(res, 403, { error: 'רק ה-DM' });
+    const r = editFields(S1_CONTENT_DIR, await readBody(req));
+    return json(res, r.status, r.body);
   }
 
   // parts: ['api', 's1', code, 'me', pid]
