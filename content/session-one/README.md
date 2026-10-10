@@ -252,6 +252,8 @@ No player answer saves a term id, so it may change if every reference to it chan
 
 Start with `npm run dev:lore`. The server writes to the local files; an edit needs a manual commit, and **commit before `railway up`**. Edit mode is off on Railway.
 
+File editor: in the DM lore view, each character, `world.md` and shared list has an edit link, and the "קבצים" section opens any file or creates a new one (`/session-one/<CODE>/dm/lore/file?key=&file=`).
+
 API (DM key): `GET/PUT/POST /api/s1/lore-file?code=&key=`; `PUT` sends `{ file, hash, text }`, `POST` creates `{ file, text }`.
 
 ## תשובות שמורות / Saved answers (for the code)

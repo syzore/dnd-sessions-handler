@@ -6,6 +6,7 @@ import { initTermPopup, termInfoButton, stepLinkHtml, CATEGORY_LABELS } from '/s
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
 let COMMON_LORE = null;
+let EDIT = null; // { files: { key: hash } } when the server is in lore edit mode and the DM key matched
 const character = (id) => CHARACTERS.find((c) => c.id === id);
 
 const $app = document.getElementById('app');
@@ -37,17 +38,23 @@ async function loadContent(code, key) {
   const q = new URLSearchParams({ code, pid: playerId() });
   if (key) q.set('key', key);
   let terms;
-  ({ commonLore: COMMON_LORE, characters: CHARACTERS, terms } = await api('GET', `/api/s1/content?${q}`));
+  let edit;
+  ({ commonLore: COMMON_LORE, characters: CHARACTERS, terms, edit } = await api('GET', `/api/s1/content?${q}`));
+  EDIT = edit || null;
   setTerms(terms);
 }
 
 // A broken content file: show the parser's message (file and line), not a blank page.
-function renderContentError(e) {
+// In edit mode the 500 also names the file: link straight to the editor for it (F17).
+function renderContentError(e, code) {
+  const b = e.body || {};
+  const fix = b.edit && b.file ? editLink(code, b.file, `פתיחת ${b.file} בעורך`, 'cta') : '';
   screen(`
     <main class="wrap center">
       <div class="hero-icon">${icon('question')}</div>
       <h1 class="q-title">בעיה בקובץ התוכן</h1>
       <p class="lead" dir="auto">${esc(e.message)}</p>
+      ${fix}
     </main>`);
 }
 
@@ -58,10 +65,13 @@ async function route() {
   const code = parts[1].toUpperCase();
   const dm = parts[2] === 'dm';
   screen('<main class="wrap center"><div class="spinner"></div></main>');
+  // The file editor must open even when the content is broken: it is how the DM fixes it.
+  if (dm && parts[3] === 'lore' && parts[4] === 'file') return renderFileEditor(code);
+  if (dm && parts[3] === 'lore' && parts[4] === 'new') return renderNewFile(code);
   try {
     await loadContent(code, dm ? adminKey(code) : null);
   } catch (e) {
-    return renderContentError(e);
+    return renderContentError(e, code);
   }
   if (dm && parts[3] === 'lore') return renderLore(code);
   if (dm) return renderDm(code);
@@ -499,6 +509,18 @@ async function renderLore(code) {
         ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
       </span>
     </div>`);
+  // Edit mode only: links to the files behind an item. Shared lists show up in the
+  // item's source locations (a `use:` list keeps its own file in `src`).
+  const srcFiles = (v, out = new Set()) => {
+    if (Array.isArray(v)) v.forEach((x) => srcFiles(x, out));
+    else if (v && typeof v === 'object') {
+      if (typeof v.file === 'string' && typeof v.line === 'number') out.add(v.file);
+      else Object.values(v).forEach((x) => srcFiles(x, out));
+    }
+    return out;
+  };
+  const listLinks = (item) =>
+    EDIT ? [...srcFiles(item)].filter((f) => f.startsWith('lists/')).map((f) => editLink(code, f, `עריכת הקובץ ${f} (רשימה משותפת)`)).join('') : '';
   const stepHtml = (c, st) => {
     const tags = [
       st.type === 'info' ? 'מידע' : st.type === 'choice' ? (st.multi ? 'בחירה מרובה' : 'בחירה') : 'שאלה פתוחה',
@@ -516,12 +538,15 @@ async function renderLore(code) {
         <h3 class="q-title small">${richText(st.title || st.prompt || '')}</h3>
         ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
         ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
-        ${body}${stepLinkHtml(st.link)}
+        ${body}${stepLinkHtml(st.link)}${listLinks(st)}
       </section>`;
   };
+  // A character's file: the characters/ file its own steps come from.
+  const charFile = (c) => [...srcFiles(c.steps)].find((f) => f.startsWith('characters/')) || `characters/${c.id}.md`;
   const chars = CHARACTERS.map((c) => `
     <details class="card dm-player">
       <summary>${esc(c.name)} · ${esc(c.cls)}</summary>
+      ${EDIT ? editLink(code, charFile(c), `עריכת הקובץ ${charFile(c)}`) : ''}
       ${(c.steps || []).map((st) => stepHtml(c, st)).join('')}
     </details>`).join('');
   const termHtml = (t) => `
@@ -547,13 +572,198 @@ async function renderLore(code) {
         <h2>${icon('eye')} רק ל-DM</h2>
         <details class="card dm-player" open data-term-scope>
           <summary>${richText(COMMON_LORE.title, { inert: true })} (כל השחקנים)</summary>
-          ${loreHtml(COMMON_LORE)}
+          ${EDIT ? editLink(code, 'world.md', 'עריכת הקובץ world.md') : ''}
+          ${loreHtml(COMMON_LORE)}${listLinks(COMMON_LORE)}
         </details>
         ${chars}
         ${terms.length ? `<h2>מונחים</h2>${termsHtml}` : ''}
+        ${EDIT ? `
+        <h2>קבצים</h2>
+        <div class="card edit-links">
+          ${Object.keys(EDIT.files).map((f) => editLink(code, f, f, '', ' dir="ltr"')).join('')}
+          <a href="${base(code)}/dm/lore/new?key=${encodeURIComponent(key)}"><strong>קובץ חדש</strong></a>
+        </div>` : ''}
       </section>
       <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key)}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
     </main>`);
+}
+
+// ---------------------------------------------------------------- lore file editor (edit mode only)
+function editLink(code, file, text, cls = 'edit-link', attrs = '') {
+  const href = `${base(code)}/dm/lore/file?key=${encodeURIComponent(adminKey(code))}&file=${encodeURIComponent(file)}`;
+  return `<a${cls ? ` class="${cls}"` : ''}${attrs} href="${href}">${esc(text)}</a>`;
+}
+
+const lockScreen = () =>
+  screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
+
+const FILE_NAME = /^[a-z0-9_-]+$/;
+function templateFor(file) {
+  const [dir, name] = file.replace(/\.md$/, '').split('/');
+  const id = name.replace(/-/g, '_');
+  if (dir === 'characters')
+    return `---\nid: ${id}\nname: שם\nclass: מקצוע\nicon: sword\n---\n\n# שם\n\n## info: lore\ntitle: כותרת\n\n### known\n\n- **כותרת** טקסט\n`;
+  if (dir === 'lists') return `# רשימה\n\ntitle: כותרת\nprompt: שאלה\n\n### 🎲 אפשרות\nid: ${id}_one\n\nתיאור.\n`;
+  return `# מונחים\n\n### מונח\nid: ${id}\nen: Term\ncategory: concept\n\nתיאור.\n`;
+}
+
+// New-file form: folder + name, then the editor opens with a template.
+function renderNewFile(code) {
+  const key = adminKey(code);
+  screen(`
+    <main class="wrap center">
+      <div class="kicker">עורך הקובץ</div>
+      <h1 class="q-title">קובץ חדש</h1>
+      <label class="field new-file"><span>תיקייה</span>
+        <select id="dir"><option value="characters">characters</option><option value="lists">lists</option><option value="terms" selected>terms</option></select>
+      </label>
+      <label class="field new-file"><span>שם</span>
+        <input id="name" dir="ltr" placeholder="my_file" autocomplete="off" spellcheck="false"><em>אותיות קטנות באנגלית, ספרות, _ ו-. ‏.md יתווסף</em>
+      </label>
+      <p class="err" id="err"></p>
+      <button class="cta" id="go">${icon('check')}<span>יצירה</span></button>
+      <a class="cta ghost" href="${base(code)}/dm/lore?key=${encodeURIComponent(key)}">${icon('chevR')}<span>חזרה ללור</span></a>
+    </main>`);
+  document.getElementById('go').onclick = () => {
+    const name = document.getElementById('name').value.trim().replace(/\.md$/, '');
+    if (!FILE_NAME.test(name)) return (document.getElementById('err').textContent = 'שם לא תקין: אותיות קטנות באנגלית, ספרות, _ ו-.');
+    const file = `${document.getElementById('dir').value}/${name}.md`;
+    location.href = `${base(code)}/dm/lore/file?key=${encodeURIComponent(key)}&file=${encodeURIComponent(file)}&new=1`;
+  };
+}
+
+async function renderFileEditor(code) {
+  const key = adminKey(code);
+  const params = new URL(location.href).searchParams;
+  const file = params.get('file') || '';
+  let isNew = params.get('new') === '1';
+  const q = `code=${encodeURIComponent(code)}&key=${encodeURIComponent(key || '')}`;
+  let text = isNew ? templateFor(file) : '';
+  let hash = null;
+  if (!isNew) {
+    try {
+      ({ text, hash } = await api('GET', `/api/s1/lore-file?${q}&file=${encodeURIComponent(file)}`));
+    } catch (e) {
+      if (e.status === 404 || e.status === 403) return lockScreen();
+      return screen(`<main class="wrap center"><h1 class="q-title">הקובץ לא נטען</h1><p class="lead" dir="auto">${esc(e.status ? e.message : 'אין חיבור לשרת.')}</p></main>`);
+    }
+  } else {
+    // Create mode: probe edit mode with a read of world.md, so a non-edit server shows the lock.
+    try {
+      await api('GET', `/api/s1/lore-file?${q}&file=world.md`);
+    } catch (e) {
+      if (e.status === 404 || e.status === 403) return lockScreen();
+    }
+  }
+  const back = `${base(code)}/dm/lore?key=${encodeURIComponent(key || '')}`;
+  let saved = text;
+  screen(`
+    <main class="wrap">
+      <div class="kicker">עורך הקובץ</div>
+      <h1 class="q-title small" dir="ltr">${esc(file)}</h1>
+      <a class="edit-link" href="${back}" id="back">חזרה ללור</a>
+      <textarea id="ta" class="file-editor" dir="auto" spellcheck="false" aria-label="${esc(file)}"></textarea>
+      <p class="hint">הפורמט מתואר ב-content/session-one/README.md</p>
+      <div id="box"></div>
+      <p class="err" id="err" role="alert"></p>
+      <div id="extra"></div>
+      <div class="editor-bar">
+        <button class="cta" id="save">${icon('check')}<span>שמירה</span></button>
+        <button class="cta ghost" id="cancel">ביטול</button>
+      </div>
+    </main>`);
+  const ta = document.getElementById('ta');
+  const err = document.getElementById('err');
+  const extra = document.getElementById('extra');
+  const box = document.getElementById('box');
+  const saveBtn = document.getElementById('save');
+  const cancel = document.getElementById('cancel');
+  ta.value = text;
+  const dirty = () => ta.value !== saved;
+  const clear = () => ((err.textContent = ''), (extra.innerHTML = ''), (box.innerHTML = ''));
+  const goBack = () => (location.href = back);
+
+  // Cancel: with unsaved text the first tap asks "בטוח?", the second leaves.
+  let armed = null;
+  const disarm = () => {
+    if (!armed) return;
+    clearTimeout(armed);
+    armed = null;
+    cancel.textContent = 'ביטול';
+  };
+  cancel.onclick = (e) => {
+    e.stopPropagation();
+    if (!dirty() || armed) return goBack();
+    cancel.textContent = 'יש שינויים. בטוח?';
+    armed = setTimeout(disarm, 4000);
+  };
+  document.addEventListener('click', disarm);
+
+  // Select the named line, scroll the textarea to it.
+  const selectLine = (n) => {
+    const lines = ta.value.split('\n');
+    if (!(n >= 1 && n <= lines.length)) return;
+    const start = lines.slice(0, n - 1).reduce((a, l) => a + l.length + 1, 0);
+    const keep = ta.value;
+    ta.value = keep.slice(0, start); // measure how tall the text before the line is
+    const top = ta.scrollHeight;
+    ta.value = keep;
+    ta.focus();
+    ta.setSelectionRange(start, start + lines[n - 1].length);
+    ta.scrollTop = Math.max(0, top - ta.clientHeight / 2);
+  };
+
+  const send = async (confirmRemovedIds) => {
+    clear();
+    saveBtn.disabled = true;
+    ta.readOnly = true;
+    saveBtn.querySelector('span').textContent = 'שומר…';
+    try {
+      const body = isNew ? { file, text: ta.value } : { file, hash, text: ta.value, ...(confirmRemovedIds && { confirmRemovedIds }) };
+      const r = await api(isNew ? 'POST' : 'PUT', `/api/s1/lore-file?${q}`, body);
+      hash = r.hash;
+      saved = ta.value;
+      if (isNew) {
+        isNew = false;
+        history.replaceState(null, '', `${base(code)}/dm/lore/file?key=${encodeURIComponent(key || '')}&file=${encodeURIComponent(file)}`);
+      }
+      err.style.color = 'var(--yes)';
+      err.textContent = 'נשמר';
+    } catch (e) {
+      err.style.color = '';
+      const b = e.body || {};
+      if (!e.status) {
+        err.textContent = 'אין חיבור לשרת. הטקסט שלך עדיין כאן.';
+      } else if (b.code === 'ids_removed') {
+        box.innerHTML = `
+          <div class="confirm-box" role="alert">
+            <p>השמירה תסיר: <strong dir="ltr">${b.ids.map(esc).join(', ')}</strong></p>
+            <p class="hint">שחקנים שענו על אלה יאבדו את התשובה בתצוגת ה-DM. בטוח?</p>
+            <div class="editor-bar"><button class="cta danger" id="yes">כן, לשמור ולמחוק</button><button class="cta ghost" id="no">לא</button></div>
+          </div>`;
+        document.getElementById('yes').onclick = () => send(b.ids);
+        document.getElementById('no').onclick = () => (box.innerHTML = '');
+        document.getElementById('yes').focus();
+      } else if (e.status === 422 && b.file) {
+        err.textContent = e.message;
+        if (b.file === file) {
+          if (b.line) selectLine(b.line);
+        } else {
+          extra.innerHTML = `<a class="edit-link" target="_blank" rel="noopener" href="${base(code)}/dm/lore/file?key=${encodeURIComponent(key || '')}&file=${encodeURIComponent(b.file)}">${esc(`פתיחת ${b.file} בעורך`)}</a>`;
+        }
+      } else {
+        err.textContent = e.message;
+        if (e.status === 409 && !isNew) {
+          extra.innerHTML = '<button class="cta ghost" id="reload" type="button">טעינה מחדש</button>';
+          document.getElementById('reload').onclick = () => location.reload();
+        }
+      }
+    }
+    ta.readOnly = false;
+    saveBtn.disabled = false;
+    saveBtn.querySelector('span').textContent = 'שמירה';
+  };
+  saveBtn.onclick = () => send();
 }
 
 initTermPopup(); // term references open one shared popup (D6)

@@ -605,3 +605,15 @@ html.tp-lock, html.tp-lock body { overflow: hidden; }
   }
   .tp-sheet { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
 }
+
+/* ---------- lore file editor (DM, edit mode) ---------- */
+.file-editor { unicode-bidi: plaintext; text-align: start; width: 100%; height: 70vh; min-height: 320px; margin-top: 14px; font-size: 17px; line-height: 1.5; font-family: ui-monospace, Menlo, monospace; resize: vertical; }
+.edit-link { display: inline-block; margin: 8px 0 0; padding: 10px 0; color: var(--gold); font-size: 15px; }
+.edit-links { display: flex; flex-direction: column; gap: 2px; }
+.edit-links a { display: block; padding: 10px 0; color: var(--gold); }
+.editor-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.editor-bar .cta { flex: 1 1 140px; margin-top: 0; }
+.confirm-box { margin-top: 14px; padding: 14px 16px; border: 2px solid var(--danger); border-radius: 14px; background: var(--card); }
+.confirm-box p { margin: 0 0 10px; }
+.new-file { text-align: right; width: 100%; max-width: 420px; }
+.cta.danger { background: var(--danger); color: #1a1208; }

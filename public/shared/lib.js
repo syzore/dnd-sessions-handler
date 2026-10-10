@@ -11,7 +11,7 @@ export async function api(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'משהו השתבש');
+  if (!r.ok) throw Object.assign(new Error(j.error || 'משהו השתבש'), { status: r.status, body: j });
   return j;
 }
 
