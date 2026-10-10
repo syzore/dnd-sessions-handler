@@ -31,6 +31,15 @@ const host = (url) => {
   }
 };
 
+// A step's one external link (D9), shown after the answer area. Plain text title, host when none.
+export function stepLinkHtml(link) {
+  if (!link) return '';
+  const h = host(link.url);
+  return `<a class="step-link" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer" dir="auto">
+    <span class="tp-link-text">${esc(link.title || h)}</span>${link.title ? `<span class="tp-link-host" dir="ltr">${esc(h)}</span>` : ''}
+    <span class="tp-link-ic">${icon('external')}</span></a>`;
+}
+
 // The popup's inner HTML for one term. canBack: show the in-popup back button.
 // Empty sections are left out (F17, F18). The image area holds the first URL; the
 // DOM side walks the rest on error (F8). Blurb references to the term itself are plain (F16).

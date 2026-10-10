@@ -232,6 +232,44 @@ test('F5: image and link URLs must be https', () => {
   fails(at('link:'), 'content/session-one/terms/x.md line 5: "link:" needs a URL at the end: "[title] — https://..."');
 });
 
+// ---------------------------------------------------------------- step link: (D9, F25-F27, F3)
+
+const withLink = (line) => ({ 'characters/a.md': replace('prompt: שאלה על [[baal]]\n', `prompt: שאלה על [[baal]]\n${line}\n`) });
+
+test('step "link:" parses to { title?, url }, on a choice step', () => {
+  const pick = (edits) => load(edits).characters[0].steps[1];
+  assert.deepEqual(pick(withLink('link: הרשימה — https://example.org/x')).link, { title: 'הרשימה', url: 'https://example.org/x' });
+  assert.deepEqual(pick(withLink('link: https://example.org/x')).link, { url: 'https://example.org/x' });
+  assert.equal('link' in load().characters[0].steps[1], false);
+});
+
+test('step "link:" works on a text step', () => {
+  const c = load({ 'characters/a.md': (s) => `${s}\n## text: t\nprompt: שאלה\nlink: https://example.org/t\n` });
+  assert.deepEqual(c.characters[0].steps.at(-1).link, { url: 'https://example.org/t' });
+});
+
+test('F25: step "link:" on an info step', () => {
+  fails({ 'characters/a.md': replace('title: הלור של [[baal]]\n', 'title: הלור של [[baal]]\nlink: https://example.org/x\n') }, 'content/session-one/characters/a.md line 10: "link:" works on choice and text steps');
+});
+
+test('F26: step "link:" must be https, have a URL, and appear once', () => {
+  fails(withLink('link: T — http://example.org'), 'content/session-one/characters/a.md line 22: "http://example.org" is not an https:// URL (only https:// links and images are allowed)');
+  fails(withLink('link: Just a title'), 'content/session-one/characters/a.md line 22: "link:" needs a URL at the end: "[title] — https://..."');
+  fails(withLink('link:'), 'content/session-one/characters/a.md line 22: "link:" needs a URL at the end: "[title] — https://..."');
+  fails(withLink('link: https://example.org/a\nlink: https://example.org/b'), 'content/session-one/characters/a.md line 23: "link:" appears twice in this step');
+});
+
+test('F3: a reference in a step "link:"', () => {
+  fails(withLink('link: [[baal]] — https://example.org/x'), `content/session-one/characters/a.md line 22: ${NOT_HERE}`);
+});
+
+test('F27: a "link:" in a lists/ file is a default; the step\'s own wins', () => {
+  const list = { 'lists/gods.md': replace('prompt: מי מדבר אליך?\n', 'prompt: מי מדבר אליך?\nlink: List — https://example.org/list\n') };
+  const god = (edits) => load(edits).characters[0].steps[2];
+  assert.deepEqual(god(list).link, { title: 'List', url: 'https://example.org/list' });
+  assert.deepEqual(god({ ...list, 'characters/a.md': replace('use: gods\n', 'use: gods\nlink: https://example.org/own\n') }).link, { url: 'https://example.org/own' });
+});
+
 // ---------------------------------------------------------------- real content (A3)
 
 test('the real content/session-one loads with no content error', () => {

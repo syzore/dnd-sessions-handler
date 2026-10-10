@@ -1,7 +1,7 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
 import { setTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
-import { initTermPopup, termInfoButton } from '/shared/term-popup.js';
+import { initTermPopup, termInfoButton, stepLinkHtml } from '/shared/term-popup.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -340,7 +340,7 @@ function renderStep(i) {
       <h1 class="q-title">${richText(st.title || st.prompt || '')}</h1>
       ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
       ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
-      ${body}
+      ${body}${stepLinkHtml(st.link)}
       <div class="footer ${st.optional ? 'stack' : ''}">
         <button class="cta" id="next">${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button>
         ${st.optional ? `<button class="cta ghost" id="skip"><span>דלג</span></button>` : ''}
@@ -520,7 +520,7 @@ async function renderLore(code) {
         <h3 class="q-title small">${richText(st.title || st.prompt || '')}</h3>
         ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
         ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
-        ${body}
+        ${body}${stepLinkHtml(st.link)}
       </section>`;
   };
   const chars = CHARACTERS.map((c) => `

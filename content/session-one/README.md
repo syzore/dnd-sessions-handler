@@ -62,6 +62,7 @@ Each step starts with `## <type>: <id>`, shown in file order, followed by `key: 
 | `optional: true` | כפתור "דלג" / a skip button |
 | `multi: true` | בחירה: אפשר כמה / choice: several picks |
 | `other: false` | בחירה: בלי תיבת "משהו אחר" (שמופיעה כברירת מחדל) / choice: hide the free-text box (shown by default) |
+| `link: [כותרת —] https://…` | בחירה/שאלה פתוחה: קישור חיצוני אחד מתחת לתשובה (לא ב-info); בלי כותרת מוצג שם האתר; ב-`lists/` זה ברירת מחדל / choice/text: one external link under the answer (not on info); no title shows the host; in `lists/` it is a default |
 | `use: <list>` | בחירה: האפשרויות מ-`lists/<list>.md` / choice: options from a shared list |
 | `use: <list>` (in `### known`/`### secret`) | info: פריטי לור משותפים מ-`lists/<list>.md` / info: shared lore bullets, listed first |
 
@@ -73,6 +74,7 @@ Each step starts with `## <type>: <id>`, shown in file order, followed by `key: 
 ## text: magic_dream
 prompt: מהי תעלומה קסומה אחת שהיית רוצה לפתור?
 optional: true
+link: הרשימה המלאה (באנגלית) — https://www.dndbeyond.com/backgrounds
 ```
 
 ### choice: בחירה / pick from options

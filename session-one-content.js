@@ -13,7 +13,7 @@ export class ContentError extends Error {}
 
 const STEP_TYPES = ['info', 'choice', 'text'];
 const BOOL = new Set(['multi', 'optional', 'other']);
-const STEP_KEYS = new Set(['title', 'prompt', 'hint', 'multi', 'optional', 'other', 'use']);
+const STEP_KEYS = new Set(['title', 'prompt', 'hint', 'multi', 'optional', 'other', 'use', 'link']);
 const OPTION_KEYS = new Set(['id', 'subtitle', 'term']);
 const FRONT_KEYS = { id: 'id', name: 'name', class: 'cls', icon: 'icon', order: 'order' };
 
@@ -332,6 +332,10 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
         v = v === 'true';
       }
       if (step[m[1]] !== undefined) fail(n, `"${m[1]}:" appears twice in this step`);
+      if (m[1] === 'link') {
+        if (step.type === 'info') fail(n, '"link:" works on choice and text steps');
+        v = parseLink(v, (msg) => fail(n, msg));
+      }
       if (REF_STEP_KEYS.has(m[1])) allowed.add(n);
       step[m[1]] = v;
       continue;
