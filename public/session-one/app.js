@@ -1,5 +1,5 @@
 import { icon } from '/shared/icons.js';
-import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
+import { esc, api, playerId, savedName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
 import { setTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
 import { initTermPopup, termInfoButton, stepLinkHtml } from '/shared/term-popup.js';
 
@@ -153,7 +153,7 @@ async function start(code) {
     return renderNotFound();
   }
   if (state.done || state.choice === 'switch') renderEnd();
-  else renderIntro();
+  else renderPick();
 }
 
 function save(extra = {}) {
@@ -163,44 +163,19 @@ function save(extra = {}) {
 
 const shownName = () => (state.choice === 'rename' && state.newName) || character(state.character)?.name || '';
 
-function topbar(i, n) {
+function topbar(i, n, back = true) {
   return `
     <header class="topbar">
-      <button class="icon-btn" id="back" aria-label="חזרה">${icon('chevR')}</button>
+      ${back ? `<button class="icon-btn" id="back" aria-label="חזרה">${icon('chevR')}</button>` : ''}
       ${n ? `<div class="progress"><div style="width:${Math.round(((i + 1) / n) * 100)}%"></div></div><div class="count">${i + 1}/${n}</div>` : ''}
     </header>`;
-}
-
-function renderIntro() {
-  screen(`
-    <main class="wrap center">
-      <div class="kicker">${esc(state.title)}</div>
-      <div class="hero-icon">${icon('knight')}</div>
-      <h1 class="q-title">סשן ראשון</h1>
-      <p class="lead">בוחרים דמות מוכנה ומכירים אותה לפני שמתחילים.</p>
-      <label class="field">
-        <span>איך קוראים לך?</span>
-        <input id="name" maxlength="40" value="${esc(state.name)}" autocomplete="given-name">
-      </label>
-      <button class="cta" id="start" ${state.name ? '' : 'disabled'}>${icon('chevL')}<span>יאללה</span></button>
-    </main>`);
-  const input = document.getElementById('name');
-  const btn = document.getElementById('start');
-  input.oninput = () => (btn.disabled = !input.value.trim());
-  input.onkeydown = (e) => e.key === 'Enter' && !btn.disabled && btn.click();
-  btn.onclick = () => {
-    state.name = input.value.trim();
-    rememberName(state.name);
-    save().catch(() => {});
-    renderPick();
-  };
 }
 
 async function renderPick() {
   await load(state.code).catch(() => {}); // fresh "taken" list
   screen(`
-    ${topbar()}
     <main class="wrap q">
+      <div class="kicker">${esc(state.title)} · סשן ראשון</div>
       <h1 class="q-title">איזו דמות תשחק/י?</h1>
       <div class="grid one">${CHARACTERS.map((c) => {
         const by = state.taken[c.id];
@@ -213,7 +188,6 @@ async function renderPick() {
       }).join('')}</div>
       <p class="err" id="err"></p>
     </main>`);
-  document.getElementById('back').onclick = renderIntro;
   $app.querySelectorAll('.opt').forEach((b) => {
     b.onclick = async () => {
       try {
@@ -455,7 +429,7 @@ async function renderDm(code) {
       ];
       return `
         <details class="card dm-player" open>
-          <summary>${esc(p.name || 'ללא שם')} · ${esc(c ? `${c.name} (${c.cls})` : 'עוד לא בחר/ה')} ${!p.done ? '<span class="muted">(באמצע)</span>' : p.choice === 'switch' ? '<span class="muted">(יחליף דמות)</span>' : ''}</summary>
+          <summary>${esc([p.name, c ? `${p.choice === 'rename' && p.newName ? p.newName : c.name} (${c.cls})` : 'עוד לא בחר/ה'].filter(Boolean).join(' · '))} ${!p.done ? '<span class="muted">(באמצע)</span>' : p.choice === 'switch' ? '<span class="muted">(יחליף דמות)</span>' : ''}</summary>
           <dl class="dm-dl">
             <div><dt>החלטה</dt><dd>${esc(choiceLabel(p.choice))}</dd></div>
             ${p.choice === 'rename' ? `<div><dt>שם חדש</dt><dd>${esc(p.newName) || '—'}</dd></div>` : ''}
