@@ -20,7 +20,10 @@ export function collectUrls(dir) {
   };
   const scan = (rel) => {
     const isTerm = rel.split(path.sep)[0] === 'terms';
-    fs.readFileSync(path.join(dir, rel), 'utf8').split('\n').forEach((text, i) => {
+    // Same reading as the parser: comments blanked (line numbers kept), lines trimmed.
+    const raw = fs.readFileSync(path.join(dir, rel), 'utf8').replace(/\r\n?/g, '\n');
+    raw.replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, '')).split('\n').forEach((line, i) => {
+      const text = line.trim();
       const m = /^(image|link):/.exec(text);
       if (!m || (m[1] === 'image' && !isTerm)) return;
       const url = URL_RE.exec(text)?.[0];

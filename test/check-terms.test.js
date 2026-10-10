@@ -25,7 +25,7 @@ test('check-terms: reports a dead term image, term link and step link with file 
     fs.writeFileSync(path.join(dir, 'steps.md'), sub('steps.md'));
     const res = await checkAll(dir, { timeoutMs: 2000 });
     const failed = res.filter((r) => !r.ok && !r.blocked).map((r) => `${r.file}:${r.line} ${r.kind} ${r.status}`).sort();
-    assert.deepEqual(failed, ['steps.md:5 step link 404', 'terms/t.md:7 term image 404', 'terms/t.md:8 term link 404']);
+    assert.deepEqual(failed, ['steps.md:5 step link 404', 'terms/t.md:7 term image 404', 'terms/t.md:11 term link 404', 'terms/t.md:8 term link 404']);
     assert.deepEqual(res.filter((r) => r.blocked).map((r) => r.url.split('/').pop()), ['blocked']);
     assert.equal(res.filter((r) => r.ok).length, 1);
   } finally {
