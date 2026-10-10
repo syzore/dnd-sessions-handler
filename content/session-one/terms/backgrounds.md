@@ -78,7 +78,7 @@ link: Giant Foundling — https://dnd5e.wikidot.com/background:giant-foundling
 
 גדלת בין ענקים או ליד חורבות שלהם, והגודל וההשפעה שלהם עיצבו אותך. אתה מרגיש בבית בין דברים ענקיים, ונושא בתוכך מסורות עתיקות של ענקים.
 
-מקור: other (Bigby Presents: Glory of the Giants, WotC 2023)
+מקור: Bigby Presents: Glory of the Giants, WotC 2023
 
 ### לוחם זירה
 id: bg_gladiator
@@ -110,7 +110,7 @@ link: Knight of the Order — https://dnd5e.wikidot.com/background:knight-of-the
 
 אתה חבר במסדר אבירים שנשבע לאידיאל או לאל. בני המסדר שלך יתנו לך מחסה ועזרה בכל מקום.
 
-מקור: other (Sword Coast Adventurer's Guide, WotC 2015)
+מקור: Sword Coast Adventurer's Guide, WotC 2015
 
 ### חוקר הנסתר
 id: bg_occultist

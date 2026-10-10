@@ -172,4 +172,4 @@ category: place
 image: https://koboldpress.com/wp-content/uploads/2023/12/map_Dornig_rumors.jpg
 link: Moving to Midgard: Favored Nations (Kobold Press) — https://koboldpress.com/moving-to-midgard-favored-nations/
 
-רייוולד הקטנה הוא רובע המשרתים של חצאי-האדם וה[[gnome]] בעיר רייוולד, בדוכסות הגדולה דורניג. הקיסרית האלפית ישנה בעיר בשינה קסומה, וההמונים שבאים לחלות את פניה ממלאים את הרובעים. הרובע מוזכר כאן כדוגמה למקום שבו מכניסים [[halfling|חצאי-אדם]] ו[[gnome]] יחד.
+רייוולד הקטנה הוא רובע המשרתים של [[halfling|חצאי-האדם]] וה[[gnome]] בעיר רייוולד, בדוכסות הגדולה דורניג. הקיסרית האלפית ישנה בעיר בשינה קסומה, וההמונים שבאים לחלות את פניה ממלאים את הרובעים. הרובע מוזכר כאן כדוגמה למקום שבו מכניסים [[halfling|חצאי-אדם]] ו[[gnome]] יחד.
