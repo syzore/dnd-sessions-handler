@@ -226,6 +226,12 @@ In the text, write `[[id]]` and the page shows the term's Hebrew name. When the 
 - **מזהה שלא קיים הוא טעות / An unknown id is a mistake:** הדף מציג את הודעת השגיאה עם קובץ ושורה, ו-`npm test` נכשל / the page shows the error with file and line, and `npm test` fails.
 - **הדף לא מחפש שמות בטקסט / The page never searches the text for names:** רק מה שמסומן ב-`[[...]]` הוא הפניה / only `[[...]]` marks a reference.
 
+### מונחים וסודות / Terms and secrets
+
+כל שחקן מקבל רק את המונחים שהתוכן שלו מגיע אליהם: הפניות בטקסט שהוא רואה, `term:` של אפשרויות, ומונחים שהתיאורים של אלה מפנים אליהם. מונח שרק `### secret` של דמות מפנה אליו מגיע רק לשחקן של הדמות הזו (ול-DM). **אבל התיאור של מונח גלוי לכל שחקן שמקבל את המונח**, אז לא כותבים סודות בתיאור של מונח: כתבו את הסוד ב-`### secret` של הדמות.
+
+Each player gets only the terms their content reaches: references in text they see, option `term:` values, and the terms those terms' blurbs reference. A term that only a character's `### secret` references reaches only that character's player (and the DM). **But a term's blurb is seen by every player who gets the term**, so keep secrets out of term blurbs: write the secret in the character's `### secret`.
+
 ### השם באנגלית / The English name
 
 בכל מסך, בפעם הראשונה שמונח מופיע, הדף מוסיף אחריו את השם באנגלית מהשורה `en:`, למשל "ולס (Veles)". **לא כותבים את האנגלית בסוגריים ביד**: היא תופיע פעמיים.

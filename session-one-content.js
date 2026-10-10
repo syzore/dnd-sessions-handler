@@ -444,14 +444,45 @@ export function loadContent(dir) {
   return { commonLore: tidyStep(world.steps[0]), characters, terms: Object.fromEntries(terms) };
 }
 
+// The term ids a value reaches: every [[id]] / [[id|text]] in its strings, and
+// every option "term:" value. Ids, use: and link: never hold "[[" (the parser
+// rejects it), so walking every string is safe.
+const REF = /\[\[([a-z0-9_]+)(?:\||\]\])/g;
+function collectRefs(value, out) {
+  if (typeof value === 'string') for (const m of value.matchAll(REF)) out.add(m[1]);
+  else if (Array.isArray(value)) for (const v of value) collectRefs(v, out);
+  else if (value && typeof value === 'object')
+    for (const [k, v] of Object.entries(value)) {
+      if (k === 'term' && typeof v === 'string') out.add(v);
+      else collectRefs(v, out);
+    }
+  return out;
+}
+
+// The terms `seen` reaches, plus what their blurbs reach, transitively (D7).
+// Own keys only, so "__proto__" / "constructor" ids are not found on Object.prototype.
+function reachableTerms(terms, seen) {
+  const ids = [...seen].filter((id) => Object.hasOwn(terms, id));
+  const keep = new Set(ids);
+  while (ids.length) {
+    const blurb = terms[ids.pop()].blurb;
+    for (const id of collectRefs(blurb, new Set()))
+      if (!keep.has(id) && Object.hasOwn(terms, id)) keep.add(id), ids.push(id);
+  }
+  return Object.fromEntries(Object.entries(terms).filter(([id]) => keep.has(id)));
+}
+
 // What one viewer may see: the DM gets everything; a player gets only their
-// own character's secret sections (none until they pick).
+// own character's secret sections (none until they pick), and only the terms
+// that their filtered content reaches (secret-safe, F14).
 export function contentFor(content, { isAdmin, character }) {
   if (isAdmin) return content;
-  return {
-    ...content,
-    characters: content.characters.map((c) =>
+  const { terms, ...rest } = content;
+  const visible = {
+    ...rest,
+    characters: rest.characters.map((c) =>
       c.id === character ? c : { ...c, steps: c.steps.map(({ secret, ...st }) => st) },
     ),
   };
+  return { ...visible, terms: reachableTerms(terms || {}, collectRefs(visible, new Set())) };
 }
