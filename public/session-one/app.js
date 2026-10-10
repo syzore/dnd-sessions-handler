@@ -255,13 +255,17 @@ function renderChoice() {
 const canGo = () => !!state.choice && (state.choice !== 'rename' || !!state.newName);
 
 // An info step's known/secret sections (player flow and DM compendium).
-const loreSection = (items, cls, heading) =>
+// `pen` (lore view, edit mode only) turns an item into its pencil button, or '' for none.
+const loreSection = (items, cls, heading, pen) =>
   items?.length
-    ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => `
-        <div class="lore-item">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}<p>${richText(it.text)}</p></div>`).join('')}</section>`
+    ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => {
+        const pencil = pen ? pen(it) : '';
+        return `
+        <div class="lore-item${pencil ? ' ed-host' : ''}">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}<p>${richText(it.text)}</p>${pencil}</div>`;
+      }).join('')}</section>`
     : '';
-const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע') =>
-  `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים')}${loreSection(st.secret, 'lore-secret', secretHeading)}</div>`;
+const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע', pen) =>
+  `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים', pen)}${loreSection(st.secret, 'lore-secret', secretHeading, pen)}</div>`;
 
 // Shared world lore, shown to every player after the keep/rename/switch choice.
 function renderCommon() {
@@ -500,7 +504,8 @@ async function renderLore(code) {
   if (!data.isAdmin) {
     return screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
   }
-  const card = (o) => withInfo(o, `
+  EDITS.length = 0;
+  const optCard = (o) => withInfo(o, `
     <div class="opt opt-card">
       ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
       <span class="opt-text">
@@ -509,6 +514,10 @@ async function renderLore(code) {
         ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
       </span>
     </div>`);
+  const card = (o) => {
+    const pencil = editPencil(o.label, o.src, { label: 'שם', subtitle: 'תת-כותרת', description: 'תיאור' }, o);
+    return pencil ? `<div class="ed-host ed-card">${optCard(o)}${pencil}</div>` : optCard(o);
+  };
   // Edit mode only: links to the files behind an item. Shared lists show up in the
   // item's source locations (a `use:` list keeps its own file in `src`).
   const srcFiles = (v, out = new Set()) => {
@@ -521,6 +530,8 @@ async function renderLore(code) {
   };
   const listLinks = (item) =>
     EDIT ? [...srcFiles(item)].filter((f) => f.startsWith('lists/')).map((f) => editLink(code, f, `עריכת הקובץ ${f} (רשימה משותפת)`)).join('') : '';
+  // Pencil for a bullet (known/secret, own or from a shared list): title + text, one `bullet` edit.
+  const bulletPencil = (it) => editPencil(it.title || it.text, it.src && { bullet: it.src.bullet }, { bullet: ['כותרת', 'טקסט'] }, it);
   const stepHtml = (c, st) => {
     const tags = [
       st.type === 'info' ? 'מידע' : st.type === 'choice' ? (st.multi ? 'בחירה מרובה' : 'בחירה') : 'שאלה פתוחה',
@@ -528,16 +539,18 @@ async function renderLore(code) {
     ].filter(Boolean).join(' · ');
     const body =
       st.type === 'info'
-        ? loreHtml(st, `🤫 הסודות של ${c.name}`)
+        ? loreHtml(st, `🤫 הסודות של ${c.name}`, bulletPencil)
         : st.type === 'choice'
         ? `<div class="grid one cards">${st.options.map(card).join('')}</div>`
         : '';
+    const head = `<h3 class="q-title small">${richText(st.title || st.prompt || '')}</h3>
+        ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
+        ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}`;
+    const headPencil = editPencil(st.title || st.prompt, st.src, { title: 'כותרת', prompt: 'שאלה', hint: 'רמז' }, st);
     return `
       <section class="lore-step" data-term-scope>
         <div class="kicker">${esc(tags)}</div>
-        <h3 class="q-title small">${richText(st.title || st.prompt || '')}</h3>
-        ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
-        ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
+        ${headPencil ? `<div class="ed-host">${head}${headPencil}</div>` : head}
         ${body}${stepLinkHtml(st.link)}${listLinks(st)}
       </section>`;
   };
@@ -549,12 +562,15 @@ async function renderLore(code) {
       ${EDIT ? editLink(code, charFile(c), `עריכת הקובץ ${charFile(c)}`) : ''}
       ${(c.steps || []).map((st) => stepHtml(c, st)).join('')}
     </details>`).join('');
-  const termHtml = (t) => `
-    <div class="lore-item" data-term-scope>
+  const termHtml = (t) => {
+    const pencil = editPencil(t.he, t.src, { name: 'שם', en: 'שם באנגלית', aliases: 'שמות נוספים', blurb: 'תיאור' }, t);
+    return `
+    <div class="lore-item${pencil ? ' ed-host' : ''}" data-term-scope>
       <h3 class="lore-t">${esc(t.he)} <span dir="ltr" lang="en">(${esc(t.en)})</span></h3>
       ${t.aliases?.length ? `<p class="hint">נקרא גם: ${t.aliases.map(esc).join(', ')}</p>` : ''}
-      ${t.blurb ? t.blurb.split(/\n\n+/).map((p) => `<p>${richText(p, { self: t.id })}</p>`).join('') : ''}
+      ${t.blurb ? t.blurb.split(/\n\n+/).map((p) => `<p>${richText(p, { self: t.id })}</p>`).join('') : ''}${pencil}
     </div>`;
+  };
   const terms = allTerms();
   const termCats = [...Object.keys(CATEGORY_LABELS), ...terms.map((t) => t.category)]
     .filter((c, i, a) => a.indexOf(c) === i);
@@ -568,12 +584,13 @@ async function renderLore(code) {
     <main class="wrap results">
       <div class="kicker">${esc(data.title)}</div>
       <h1 class="q-title">סשן ראשון: כל הלור והבחירות</h1>
+      ${EDIT ? '<p class="hint ed-banner">מצב עריכה: שמירה כותבת לקבצים במחשב הזה. לא לשכוח commit.</p>' : ''}
       <section class="dm">
         <h2>${icon('eye')} רק ל-DM</h2>
         <details class="card dm-player" open data-term-scope>
           <summary>${richText(COMMON_LORE.title, { inert: true })} (כל השחקנים)</summary>
           ${EDIT ? editLink(code, 'world.md', 'עריכת הקובץ world.md') : ''}
-          ${loreHtml(COMMON_LORE)}${listLinks(COMMON_LORE)}
+          ${loreHtml(COMMON_LORE, undefined, bulletPencil)}${listLinks(COMMON_LORE)}
         </details>
         ${chars}
         ${terms.length ? `<h2>מונחים</h2>${termsHtml}` : ''}
@@ -586,6 +603,166 @@ async function renderLore(code) {
       </section>
       <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key)}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
     </main>`);
+  wireInlineEdit(code, key);
+}
+
+// ---------------------------------------------------------------- inline editing (edit mode only)
+// One pencil per editable item (D7). EDITS[i] describes the item behind pencil i.
+const EDITS = [];
+const NET_ERR = 'אין חיבור לשרת. הטקסט שלך עדיין כאן.';
+// Fields that are paragraphs (auto-growing textarea); every other field is one line.
+const MULTI_FIELDS = new Set(['description', 'blurb', 'text']);
+
+// `src` is the item's `src` object, `labels` maps field kind -> Hebrew label (a bullet maps to
+// [title label, text label]), `item` supplies the current values. Fields come from one file only
+// (a save writes one file); '' when edit mode is off or the item has no src.
+function editPencil(name, src, labels, item) {
+  if (!EDIT || !src) return '';
+  const kinds = Object.keys(labels).filter((k) => src[k]);
+  if (!kinds.length) return '';
+  const file = src[kinds[0]].file;
+  const inputs = [];
+  for (const k of kinds.filter((x) => src[x].file === file)) {
+    const line = src[k].line;
+    if (k === 'bullet') {
+      inputs.push({ field: k, line, part: 'title', label: labels[k][0], value: item.title || '' });
+      inputs.push({ field: k, line, part: 'text', label: labels[k][1], value: item.text || '' });
+    } else {
+      const v = k === 'aliases' ? (item.aliases || []).join(', ') : k === 'name' ? item.he : item[k];
+      inputs.push({ field: k, line, label: labels[k], value: v ?? '' });
+    }
+  }
+  EDITS.push({ name: plainText(name), file, inputs });
+  return `<button type="button" class="ed-pencil" data-ed="${EDITS.length - 1}" aria-label="${esc(`עריכה: ${plainText(name)}`)}">${icon('pencil')}</button>`;
+}
+
+function wireInlineEdit(code, key) {
+  if (!EDIT) return;
+  let open = null; // { host, html, dirty() }: the one open editor (A16)
+  const users = (file) => {
+    const has = (v) => JSON.stringify(v).includes(`"file":${JSON.stringify(file)}`);
+    return [...(has(COMMON_LORE) ? ['העולם'] : []), ...CHARACTERS.filter((c) => has(c.steps)).map((c) => c.name)];
+  };
+
+  const close = () => {
+    if (!open) return;
+    open.host.innerHTML = open.html;
+    const pen = open.host.querySelector('.ed-pencil');
+    open = null;
+    return pen;
+  };
+
+  const openEditor = (host, spec) => {
+    const html = host.innerHTML;
+    const shared = spec.file.startsWith('lists/')
+      ? `<p class="hint ed-shared">רשימה משותפת: השינוי יופיע אצל ${esc(users(spec.file).join(', '))}</p>` : '';
+    host.innerHTML = `
+      <div class="ed-form">
+        <div class="ed-file" dir="ltr">${esc(spec.file)}</div>
+        ${shared}
+        ${spec.inputs.map((f, i) => `
+        <label class="ed-field"><span>${esc(f.label)}</span>
+          ${MULTI_FIELDS.has(f.part || f.field)
+            ? `<textarea dir="rtl" rows="2" data-i="${i}">${esc(f.value)}</textarea>`
+            : `<input dir="rtl" data-i="${i}" value="${esc(f.value)}">`}
+        </label>`).join('')}
+        <p class="hint">הפניה למונח: [[id]] או [[id|טקסט]]</p>
+        <div class="editor-bar">
+          <button type="button" class="cta" data-act="save" disabled><span>שמירה</span></button>
+          <button type="button" class="cta ghost" data-act="cancel"><span>ביטול</span></button>
+        </div>
+        <p class="err ed-err" role="alert"></p>
+        <div class="ed-extra"></div>
+      </div>`;
+    const els = [...host.querySelectorAll('[data-i]')];
+    const saveBtn = host.querySelector('[data-act=save]');
+    const cancelBtn = host.querySelector('[data-act=cancel]');
+    const err = host.querySelector('.ed-err');
+    const extra = host.querySelector('.ed-extra');
+    const grow = (el) => {
+      if (el.tagName !== 'TEXTAREA') return;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight + 2}px`;
+    };
+    const dirty = () => els.some((el, i) => el.value !== spec.inputs[i].value);
+    open = { host, html, dirty, name: spec.name };
+    els.forEach((el) => {
+      grow(el);
+      el.oninput = () => {
+        grow(el);
+        saveBtn.disabled = !dirty();
+      };
+      if (el.tagName === 'INPUT') el.onkeydown = (e) => e.key === 'Enter' && e.preventDefault();
+    });
+    els[0].focus();
+    cancelBtn.onclick = () => close()?.focus();
+
+    saveBtn.onclick = async () => {
+      err.textContent = '';
+      extra.innerHTML = '';
+      // Changed fields only; a bullet's title and text go together as one edit.
+      const edits = [];
+      spec.inputs.forEach((f, i) => {
+        if (els[i].value === f.value) return;
+        if (f.field === 'bullet') {
+          if (edits.some((e) => e.line === f.line)) return;
+          const pair = spec.inputs.map((g, j) => ({ g, j })).filter(({ g }) => g.line === f.line);
+          const val = (part) => els[pair.find(({ g }) => g.part === part).j].value;
+          edits.push({ line: f.line, field: 'bullet', value: { title: val('title'), text: val('text') } });
+        } else edits.push({ line: f.line, field: f.field, value: els[i].value });
+      });
+      els.forEach((el) => (el.readOnly = true));
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.querySelector('span').textContent = 'שומר…';
+      try {
+        await api('PUT', `/api/s1/lore-field?code=${encodeURIComponent(code)}&key=${encodeURIComponent(key)}`, {
+          file: spec.file, hash: EDIT.files[spec.file], edits,
+        });
+        await loadContent(code, key);
+        return renderLore(code);
+      } catch (e) {
+        err.textContent = e.status ? e.message : NET_ERR;
+        if (e.status === 409) {
+          extra.innerHTML = '<button class="cta ghost" type="button">טעינה מחדש</button>';
+          extra.firstChild.onclick = () => location.reload();
+        }
+      }
+      els.forEach((el) => (el.readOnly = false));
+      saveBtn.disabled = !dirty();
+      cancelBtn.disabled = false;
+      saveBtn.querySelector('span').textContent = 'שמירה';
+    };
+  };
+
+  $app.onclick = (e) => {
+    const pen = e.target.closest('.ed-pencil');
+    if (!pen) return;
+    const host = pen.closest('.ed-host');
+    const spec = EDITS[+pen.dataset.ed];
+    if (open && open.host !== host && open.dirty()) {
+      // A16: unsaved changes in the open editor. Ask inside it, not with window.confirm.
+      const box = open.host.querySelector('.ed-extra');
+      box.innerHTML = `
+        <div class="confirm-box" role="alert">
+          <p>לבטל את השינויים ב${esc(open.name)}?</p>
+          <div class="editor-bar"><button type="button" class="cta danger" data-act="yes">כן, לבטל</button><button type="button" class="cta ghost" data-act="no">המשך עריכה</button></div>
+        </div>`;
+      box.querySelector('[data-act=no]').onclick = () => {
+        box.innerHTML = '';
+        open.host.querySelector('[data-i]').focus();
+      };
+      box.querySelector('[data-act=yes]').onclick = () => {
+        close();
+        openEditor(host, spec);
+      };
+      box.querySelector('[data-act=no]').focus();
+      return;
+    }
+    if (open?.host === host) return;
+    close();
+    openEditor(host, spec);
+  };
 }
 
 // ---------------------------------------------------------------- lore file editor (edit mode only)
@@ -733,7 +910,7 @@ async function renderFileEditor(code) {
       err.style.color = '';
       const b = e.body || {};
       if (!e.status) {
-        err.textContent = 'אין חיבור לשרת. הטקסט שלך עדיין כאן.';
+        err.textContent = NET_ERR;
       } else if (b.code === 'ids_removed') {
         box.innerHTML = `
           <div class="confirm-box" role="alert">

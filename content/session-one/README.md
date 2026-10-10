@@ -254,6 +254,8 @@ Start with `npm run dev:lore`. The server writes to the local files; an edit nee
 
 File editor: in the DM lore view, each character, `world.md` and shared list has an edit link, and the "קבצים" section opens any file or creates a new one (`/session-one/<CODE>/dm/lore/file?key=&file=`).
 
+Inline editing: in the DM lore view, each step header, bullet, choice option and term has a pencil that edits its fields in place (`PUT /api/s1/lore-field`); a shared list item says which characters it appears under.
+
 API (DM key): `GET/PUT/POST /api/s1/lore-file?code=&key=`; `PUT` sends `{ file, hash, text }`, `POST` creates `{ file, text }`.
 
 ## תשובות שמורות / Saved answers (for the code)

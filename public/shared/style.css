@@ -617,3 +617,25 @@ html.tp-lock, html.tp-lock body { overflow: hidden; }
 .confirm-box p { margin: 0 0 10px; }
 .new-file { text-align: right; width: 100%; max-width: 420px; }
 .cta.danger { background: var(--danger); color: #1a1208; }
+
+/* ---------- inline lore editing (DM, edit mode) ---------- */
+.ed-banner { margin: 6px 0 14px; }
+.ed-host { position: relative; padding-inline-start: 46px; }
+.ed-host > .opt, .ed-host > .opt-wrap > .opt { padding-inline-start: 52px; }
+.ed-pencil {
+  position: absolute; inset-inline-start: 0; top: 0; width: 40px; height: 40px; padding: 9px;
+  background: transparent; border: 0; border-radius: 50%; color: var(--gold); cursor: pointer; opacity: .5;
+}
+.ed-card { padding-inline-start: 0; }
+.ed-card > .ed-pencil { inset-inline-start: 6px; top: 6px; }
+.ed-pencil:hover, .ed-pencil:focus-visible { opacity: 1; }
+.ed-pencil:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ed-host:has(.ed-form) { padding-inline-start: 0; }
+.ed-form { text-align: start; }
+.ed-file { font-size: 13px; color: var(--muted); margin-bottom: 6px; text-align: left; }
+.ed-field { display: block; margin-top: 10px; }
+.ed-field > span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+.ed-field input, .ed-field textarea { font-size: 17px; padding: 10px 12px; }
+.ed-field textarea { overflow: hidden; resize: none; min-height: 48px; }
+.ed-extra .cta { margin-top: 10px; }
+.ed-card .ed-form { padding: 14px; border: 2px solid var(--gold); border-radius: var(--radius); background: var(--card); }
