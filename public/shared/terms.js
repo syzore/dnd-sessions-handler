@@ -7,6 +7,8 @@ let TERMS = {};
 // The terms the server sent with the content: { <id>: { id, he, en, ... } }.
 export const setTerms = (terms) => (TERMS = terms || {});
 // Own keys only: "constructor" or "__proto__" must not find Object.prototype (F7).
+// Every term, in the order the server sent them (the DM lore view's terms section).
+export const allTerms = () => Object.values(TERMS);
 export const termOf = (id) => (Object.hasOwn(TERMS, id) ? TERMS[id] : undefined);
 
 // [[id]] or [[id|text]]; the text is anything except "]]" (D2), so it may hold a single "]".

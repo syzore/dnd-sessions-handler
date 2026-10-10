@@ -1,7 +1,7 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
-import { setTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
-import { initTermPopup, termInfoButton, stepLinkHtml } from '/shared/term-popup.js';
+import { setTerms, allTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
+import { initTermPopup, termInfoButton, stepLinkHtml, CATEGORY_LABELS } from '/shared/term-popup.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -524,6 +524,21 @@ async function renderLore(code) {
       <summary>${esc(c.name)} · ${esc(c.cls)}</summary>
       ${(c.steps || []).map((st) => stepHtml(c, st)).join('')}
     </details>`).join('');
+  const termHtml = (t) => `
+    <div class="lore-item" data-term-scope>
+      <h3 class="lore-t">${esc(t.he)} <span dir="ltr" lang="en">(${esc(t.en)})</span></h3>
+      ${t.aliases?.length ? `<p class="hint">נקרא גם: ${t.aliases.map(esc).join(', ')}</p>` : ''}
+      ${t.blurb ? t.blurb.split(/\n\n+/).map((p) => `<p>${richText(p, { self: t.id })}</p>`).join('') : ''}
+    </div>`;
+  const terms = allTerms();
+  const termCats = [...Object.keys(CATEGORY_LABELS), ...terms.map((t) => t.category)]
+    .filter((c, i, a) => a.indexOf(c) === i);
+  const termsHtml = termCats.map((cat) => {
+    const list = terms.filter((t) => t.category === cat);
+    return list.length
+      ? `<details class="card dm-player"><summary>${esc(CATEGORY_LABELS[cat] || cat)} (${list.length})</summary>${list.map(termHtml).join('')}</details>`
+      : '';
+  }).join('');
   screen(`
     <main class="wrap results">
       <div class="kicker">${esc(data.title)}</div>
@@ -535,6 +550,7 @@ async function renderLore(code) {
           ${loreHtml(COMMON_LORE)}
         </details>
         ${chars}
+        ${terms.length ? `<h2>מונחים</h2>${termsHtml}` : ''}
       </section>
       <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key)}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
     </main>`);
