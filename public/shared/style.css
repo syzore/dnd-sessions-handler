@@ -630,6 +630,8 @@ html.tp-lock, html.tp-lock body { overflow: hidden; }
 .ed-card > .ed-pencil { inset-inline-start: 6px; top: 6px; }
 .ed-pencil:hover, .ed-pencil:focus-visible { opacity: 1; }
 .ed-pencil:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.saved-mark { position: absolute; inset-inline-start: 6px; bottom: 6px; padding: 2px 10px; border-radius: 10px; background: var(--card); color: var(--yes); font-size: 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ed-host:has(.ed-form) { padding-inline-start: 0; }
 .ed-form { text-align: start; }
 .ed-file { font-size: 13px; color: var(--muted); margin-bottom: 6px; text-align: left; }

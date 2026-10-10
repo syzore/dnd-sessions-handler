@@ -67,7 +67,7 @@ async function route() {
   screen('<main class="wrap center"><div class="spinner"></div></main>');
   // The file editor must open even when the content is broken: it is how the DM fixes it.
   if (dm && parts[3] === 'lore' && parts[4] === 'file') return renderFileEditor(code);
-  if (dm && parts[3] === 'lore' && parts[4] === 'new') return renderNewFile(code);
+  if (dm && parts[3] === 'lore' && parts[4] === 'new') return (await editLocked(code)) ? lockScreen() : renderNewFile(code);
   try {
     await loadContent(code, dm ? adminKey(code) : null);
   } catch (e) {
@@ -603,7 +603,49 @@ async function renderLore(code) {
       </section>
       <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key)}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
     </main>`);
+  trackedCode = code;
+  restoreOpen(code);
   wireInlineEdit(code, key);
+}
+
+// ---------------------------------------------------------------- unsaved guard, open set, saved mark (D7, A23, F34)
+// The open editor (inline form or file editor) registers its dirty() here; the browser asks before leaving.
+let dirtyCheck = null;
+window.addEventListener('beforeunload', (e) => {
+  if (dirtyCheck?.()) e.preventDefault();
+});
+
+// Which lore <details> are open, kept per game in sessionStorage so a re-render or Back restores it.
+const openKey = (code) => `s1-lore-open:${code}`;
+const saveOpen = (code) =>
+  sessionStorage.setItem(openKey(code), JSON.stringify([...$app.querySelectorAll('details')].map((d) => d.open)));
+function restoreOpen(code) {
+  let saved;
+  try { saved = JSON.parse(sessionStorage.getItem(openKey(code))); } catch { /* none */ }
+  if (Array.isArray(saved)) $app.querySelectorAll('details').forEach((d, i) => { if (i in saved) d.open = saved[i]; });
+}
+let trackedCode = null;
+$app.addEventListener('toggle', () => trackedCode && saveOpen(trackedCode), true); // toggle does not bubble
+
+// "נשמר" for about 2 seconds, and announced through one polite live region.
+function savedMark(host) {
+  let live = document.getElementById('s1-live');
+  if (!live) {
+    live = document.createElement('div');
+    live.id = 's1-live';
+    live.className = 'sr-only';
+    live.setAttribute('aria-live', 'polite');
+    document.body.append(live);
+  }
+  live.textContent = '';
+  setTimeout(() => (live.textContent = 'נשמר'), 50);
+  if (!host) return;
+  const m = document.createElement('span');
+  m.className = 'saved-mark';
+  m.setAttribute('aria-hidden', 'true');
+  m.textContent = 'נשמר';
+  host.append(m);
+  setTimeout(() => m.remove(), 2000);
 }
 
 // ---------------------------------------------------------------- inline editing (edit mode only)
@@ -639,9 +681,28 @@ function editPencil(name, src, labels, item) {
 function wireInlineEdit(code, key) {
   if (!EDIT) return;
   let open = null; // { host, html, dirty() }: the one open editor (A16)
+  dirtyCheck = () => !!open?.dirty();
   const users = (file) => {
     const has = (v) => JSON.stringify(v).includes(`"file":${JSON.stringify(file)}`);
     return [...(has(COMMON_LORE) ? ['העולם'] : []), ...CHARACTERS.filter((c) => has(c.steps)).map((c) => c.name)];
+  };
+
+  // A16: ask inside the open editor, never window.confirm.
+  const confirmDiscard = (onYes) => {
+    const box = open.host.querySelector('.ed-extra');
+    box.innerHTML = `
+      <div class="confirm-box" role="alert">
+        <p>לבטל את השינויים שלא נשמרו?</p>
+        <div class="editor-bar"><button type="button" class="cta danger" data-act="yes">כן, לבטל</button><button type="button" class="cta ghost" data-act="no">המשך עריכה</button></div>
+      </div>`;
+    const keepEditing = () => {
+      box.innerHTML = '';
+      open.host.querySelector('[data-i]').focus();
+    };
+    box.querySelector('[data-act=no]').onclick = keepEditing;
+    box.querySelector('[data-act=yes]').onclick = onYes;
+    box.querySelector('[data-act=no]').focus();
+    return keepEditing;
   };
 
   const close = () => {
@@ -695,7 +756,23 @@ function wireInlineEdit(code, key) {
       if (el.tagName === 'INPUT') el.onkeydown = (e) => e.key === 'Enter' && e.preventDefault();
     });
     els[0].focus();
-    cancelBtn.onclick = () => close()?.focus();
+    const cancel = () => {
+      if (!open.dirty()) return close()?.focus();
+      confirmDiscard(() => close()?.focus());
+    };
+    cancelBtn.onclick = cancel;
+    // Ctrl/Cmd+Enter saves; Esc cancels (asks first when there is something to lose, and a second Esc keeps editing).
+    host.querySelector('.ed-form').onkeydown = (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (!saveBtn.disabled) saveBtn.click();
+      } else if (e.key === 'Escape' && !cancelBtn.disabled) {
+        e.preventDefault();
+        const asking = extra.querySelector('.confirm-box');
+        if (asking) extra.querySelector('[data-act=no]').click();
+        else cancel();
+      }
+    };
 
     saveBtn.onclick = async () => {
       err.textContent = '';
@@ -719,8 +796,14 @@ function wireInlineEdit(code, key) {
         await api('PUT', `/api/s1/lore-field?code=${encodeURIComponent(code)}&key=${encodeURIComponent(key)}`, {
           file: spec.file, hash: EDIT.files[spec.file], edits,
         });
+        const top = host.getBoundingClientRect().top;
+        const idx = EDITS.indexOf(spec);
+        saveOpen(code);
         await loadContent(code, key);
-        return renderLore(code);
+        await renderLore(code);
+        const newHost = $app.querySelector(`[data-ed="${idx}"]`)?.closest('.ed-host');
+        if (newHost) window.scrollBy(0, newHost.getBoundingClientRect().top - top);
+        return savedMark(newHost);
       } catch (e) {
         err.textContent = e.status ? e.message : NET_ERR;
         if (e.status === 409) {
@@ -741,22 +824,10 @@ function wireInlineEdit(code, key) {
     const host = pen.closest('.ed-host');
     const spec = EDITS[+pen.dataset.ed];
     if (open && open.host !== host && open.dirty()) {
-      // A16: unsaved changes in the open editor. Ask inside it, not with window.confirm.
-      const box = open.host.querySelector('.ed-extra');
-      box.innerHTML = `
-        <div class="confirm-box" role="alert">
-          <p>לבטל את השינויים ב${esc(open.name)}?</p>
-          <div class="editor-bar"><button type="button" class="cta danger" data-act="yes">כן, לבטל</button><button type="button" class="cta ghost" data-act="no">המשך עריכה</button></div>
-        </div>`;
-      box.querySelector('[data-act=no]').onclick = () => {
-        box.innerHTML = '';
-        open.host.querySelector('[data-i]').focus();
-      };
-      box.querySelector('[data-act=yes]').onclick = () => {
+      confirmDiscard(() => {
         close();
         openEditor(host, spec);
-      };
-      box.querySelector('[data-act=no]').focus();
+      });
       return;
     }
     if (open?.host === host) return;
@@ -773,6 +844,16 @@ function editLink(code, file, text, cls = 'edit-link', attrs = '') {
 
 const lockScreen = () =>
   screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
+
+// True when edit mode is off or the key is wrong: probe with a read of world.md (the lock screen).
+async function editLocked(code) {
+  try {
+    await api('GET', `/api/s1/lore-file?code=${encodeURIComponent(code)}&key=${encodeURIComponent(adminKey(code) || '')}&file=world.md`);
+  } catch (e) {
+    return e.status === 404 || e.status === 403;
+  }
+  return false;
+}
 
 const FILE_NAME = /^[a-z0-9_-]+$/;
 function templateFor(file) {
@@ -825,12 +906,7 @@ async function renderFileEditor(code) {
       return screen(`<main class="wrap center"><h1 class="q-title">הקובץ לא נטען</h1><p class="lead" dir="auto">${esc(e.status ? e.message : 'אין חיבור לשרת.')}</p></main>`);
     }
   } else {
-    // Create mode: probe edit mode with a read of world.md, so a non-edit server shows the lock.
-    try {
-      await api('GET', `/api/s1/lore-file?${q}&file=world.md`);
-    } catch (e) {
-      if (e.status === 404 || e.status === 403) return lockScreen();
-    }
+    if (await editLocked(code)) return lockScreen();
   }
   const back = `${base(code)}/dm/lore?key=${encodeURIComponent(key || '')}`;
   let saved = text;
@@ -858,7 +934,8 @@ async function renderFileEditor(code) {
   ta.value = text;
   const dirty = () => ta.value !== saved;
   const clear = () => ((err.textContent = ''), (extra.innerHTML = ''), (box.innerHTML = ''));
-  const goBack = () => (location.href = back);
+  dirtyCheck = dirty;
+  const goBack = () => ((dirtyCheck = null), (location.href = back));
 
   // Cancel: with unsaved text the first tap asks "בטוח?", the second leaves.
   let armed = null;
@@ -941,6 +1018,13 @@ async function renderFileEditor(code) {
     saveBtn.querySelector('span').textContent = 'שמירה';
   };
   saveBtn.onclick = () => send();
+  // Ctrl/Cmd+Enter saves; Esc cancels (a dirty file asks first, via the cancel button's "בטוח?").
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      if (!saveBtn.disabled) send();
+    } else if (e.key === 'Escape') cancel.click();
+  });
 }
 
 initTermPopup(); // term references open one shared popup (D6)
