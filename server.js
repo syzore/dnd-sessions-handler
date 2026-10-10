@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI, ApiError as GeminiApiError } from '@google/genai';
 import { loadContent, contentFor, ContentError } from './session-one-content.js';
+import { fileVersions, pathOf, saveFile, splitError, versionOf } from './lore-edit.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -496,23 +497,56 @@ async function tablesApi(req, res, parts, url) {
 const S1_CHOICES = ['keep', 'rename', 'switch'];
 // The characters and lore, hand-edited as Markdown (see content/session-one/README.md).
 // Parsed on every request: an edit shows on refresh, no restart.
-const S1_CONTENT_DIR = path.join(ROOT, 'content', 'session-one');
+const S1_CONTENT_DIR = process.env.S1_CONTENT_DIR ? path.resolve(process.env.S1_CONTENT_DIR) : path.join(ROOT, 'content', 'session-one');
+
+// Lore edit mode (local only, `npm run dev:lore`): LORE_EDIT=1 and no RAILWAY_* variable.
+const RAILWAY_ENV = Object.keys(process.env).some((k) => k.startsWith('RAILWAY_'));
+const LORE_EDIT = process.env.LORE_EDIT === '1' && !RAILWAY_ENV;
+if (process.env.LORE_EDIT === '1' && RAILWAY_ENV) console.log('LORE_EDIT ignored: RAILWAY_* environment detected');
 
 async function s1Api(req, res, parts, url) {
   // GET /api/s1/content?code=&pid=&key=
   // The DM key gets everything; a player gets only their own character's secrets.
   if (req.method === 'GET' && parts[2] === 'content' && parts.length === 3) {
+    const s = db.sessions[String(url.searchParams.get('code') || '').toUpperCase()];
+    const isAdmin = !!s && url.searchParams.get('key') === s.adminKey;
+    const gated = LORE_EDIT && isAdmin;
     let content;
     try {
       content = loadContent(S1_CONTENT_DIR);
     } catch (e) {
-      if (e instanceof ContentError) return json(res, 500, { error: `שגיאה בקובץ התוכן: ${e.message}` });
+      if (e instanceof ContentError) {
+        const { file, line } = splitError(S1_CONTENT_DIR, e.message);
+        return json(res, 500, {
+          error: `שגיאה בקובץ התוכן: ${e.message}`,
+          ...(gated && { file, line, edit: { files: fileVersions(S1_CONTENT_DIR) } }),
+        });
+      }
       throw e;
     }
-    const s = db.sessions[String(url.searchParams.get('code') || '').toUpperCase()];
-    const isAdmin = !!s && url.searchParams.get('key') === s.adminKey;
     const character = s?.sessionOne?.players[url.searchParams.get('pid')]?.character;
-    return json(res, 200, contentFor(content, { isAdmin, character }));
+    const out = contentFor(content, { isAdmin, character });
+    return json(res, 200, gated ? { ...out, edit: { files: fileVersions(S1_CONTENT_DIR) } } : out);
+  }
+
+  // Whole-file lore editing: GET / PUT / POST /api/s1/lore-file?code=&key=  (edit mode + DM key)
+  if (parts[2] === 'lore-file' && parts.length === 3) {
+    if (!LORE_EDIT) return json(res, 404, { error: 'not found' });
+    const ds = db.sessions[String(url.searchParams.get('code') || '').toUpperCase()];
+    if (!ds || url.searchParams.get('key') !== ds.adminKey) return json(res, 403, { error: 'רק ה-DM' });
+    if (req.method === 'GET') {
+      const file = url.searchParams.get('file');
+      const p = pathOf(S1_CONTENT_DIR, file);
+      if (!p) return json(res, 400, { error: 'שם קובץ לא תקין' });
+      if (!fs.existsSync(p)) return json(res, 404, { error: 'not found' });
+      const text = fs.readFileSync(p, 'utf8');
+      return json(res, 200, { file, text, hash: versionOf(text) });
+    }
+    if (req.method === 'PUT' || req.method === 'POST') {
+      const body = await readBody(req);
+      const r = saveFile(S1_CONTENT_DIR, { ...body, create: req.method === 'POST' });
+      return json(res, r.status, r.body);
+    }
   }
 
   // parts: ['api', 's1', code, 'me', pid]

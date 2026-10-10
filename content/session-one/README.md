@@ -246,6 +246,14 @@ On each screen, the first time a term appears, the page adds its English name fr
 
 No player answer saves a term id, so it may change if every reference to it changes too. `npm test` lists every reference left without a term. (Character, step and option ids: never change them, as above.)
 
+## עריכה מהדפדפן / Editing from the browser
+
+הרצה עם `npm run dev:lore`. השרת כותב ישר לקבצים המקומיים; שינוי דורש commit ידני, ו**צריך לעשות commit לפני `railway up`**. מצב עריכה כבוי ב-Railway.
+
+Start with `npm run dev:lore`. The server writes to the local files; an edit needs a manual commit, and **commit before `railway up`**. Edit mode is off on Railway.
+
+API (DM key): `GET/PUT/POST /api/s1/lore-file?code=&key=`; `PUT` sends `{ file, hash, text }`, `POST` creates `{ file, text }`.
+
 ## תשובות שמורות / Saved answers (for the code)
 
 `answers[<step id>]`: text = string; choice = option id, or an array with `multi: true`; free text in `answers["<step id>_other"]`; a skipped step has no key. Parser: `session-one-content.js`; served at `GET /api/s1/content`.

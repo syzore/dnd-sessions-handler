@@ -394,13 +394,26 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map()) {
   return { front, steps, lines, allowed };
 }
 
-const read = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
-const mdFiles = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
+const readDisk = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
+const mdFilesDisk = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
 // Reorder so id/type come first in each step and each option (purely cosmetic in the JSON).
 const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(rest.options && { options: rest.options.map(({ id, ...o }) => ({ id, ...o })) }) });
 
 // Read and parse the whole content folder. Throws ContentError.
-export function loadContent(dir) {
+// override: { file: 'terms/x.md', text } parses with that file's text replaced (or added),
+// without touching the disk.
+export function loadContent(dir, { override } = {}) {
+  const isOver = (rel) => override && rel.split(path.sep).join('/') === override.file;
+  const read = (d, rel) => (isOver(rel) ? override.text : readDisk(d, rel));
+  const mdFiles = (d) => {
+    const names = mdFilesDisk(d);
+    const sub = path.relative(dir, d).split(path.sep).join('/');
+    if (override && sub && path.posix.dirname(override.file) === sub) {
+      const n = path.posix.basename(override.file);
+      if (!names.includes(n)) names.push(n), names.sort();
+    }
+    return names;
+  };
   const relOf = (f) => path.relative(path.dirname(path.dirname(dir)), path.join(dir, f)); // content/session-one/...
 
   // Terms first: every other file's [[references]] are checked against them.
@@ -429,7 +442,7 @@ export function loadContent(dir) {
     lists[f.slice(0, -3)] = { keys, options, bullets };
   }
 
-  if (!fs.existsSync(path.join(dir, 'world.md'))) throw new ContentError(`${relOf('world.md')}: file is missing`);
+  if (!fs.existsSync(path.join(dir, 'world.md')) && !isOver('world.md')) throw new ContentError(`${relOf('world.md')}: file is missing`);
   const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists, terms));
   if (world.steps.length !== 1 || world.steps[0].type !== 'info')
     throw new ContentError(`${relOf('world.md')}: holds exactly one "## info: <id>" step`);
