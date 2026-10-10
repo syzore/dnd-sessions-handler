@@ -153,7 +153,7 @@ function planEdit(lines, scan, { line, field, value }) {
     if (ONE_LINE.has(field) && /[\r\n]/.test(value)) return { error: 'ערך בשורה אחת' };
     const v = MULTI.has(field) ? paragraphs(value).join('\n\n') : value.trim();
     if (!v) return { error: 'שדה ריק: כדי למחוק, השתמשו בעורך הקובץ' };
-    expect = v;
+    expect = field === 'aliases' ? v.split(',').map((a) => a.trim()).filter(Boolean).join(', ') : v;
     if (MULTI.has(field)) {
       if (!at.trim() || at.startsWith('#')) return { error: NOT_FOUND };
       let last = i;

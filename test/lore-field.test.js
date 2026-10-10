@@ -145,6 +145,13 @@ test('term: name, en, aliases, blurb; only the field lines change', async () => 
   assert.match(t, /image: https:\/\/example.org\/veles-2.png\nlink: Midgard/);
 });
 
+test('term: aliases "a,b" without a space saves', async () => {
+  const v = (await content(on)).terms.veles;
+  const r = await put(on, 'terms/gods.md', [{ line: v.src.aliases.line, field: 'aliases', value: 'א,ב' }]);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual((await content(on)).terms.veles.aliases, ['א', 'ב']);
+});
+
 test('rejections: overlap, stale line, one-line, comment, structure, id change, stale hash', async () => {
   const c = await content(on);
   const o = stepOf(c, 'pick').options[0];
