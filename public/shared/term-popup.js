@@ -93,8 +93,12 @@ function show() {
 
 function open(id, from) {
   if (!termOf(id)) return;
+  // Esc closed the dialog natively and its close event is still queued: clean up first,
+  // or this open would push a second history entry.
+  if (active && !dialog.open) finish();
   if (dialog.open) {
-    stack = [id]; // a second tap replaces the content (F23)
+    opener = from; // a tap on another page term replaces the content (F23)
+    stack = [id];
     return show();
   }
   opener = from;
@@ -150,9 +154,24 @@ function finish() {
   opener = null;
 }
 
+// The page term under a backdrop press, if any. Hit testing skips the inert page
+// (elementsFromPoint returns only the dialog and <html>), so compare the term boxes.
+// getClientRects: a term can wrap onto two lines.
+function pageTermAt(x, y) {
+  for (const el of document.querySelectorAll('button.term[data-term]')) {
+    if (dialog.contains(el)) continue;
+    for (const r of el.getClientRects()) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
+    }
+  }
+  return null;
+}
+
 // Call once per page. Safe to call again.
 export function initTermPopup() {
   if (dialog) return;
+  // Reloaded with the popup open: our entry came back without the popup. Make it plain.
+  if (history.state?.termPopup) history.replaceState(null, '');
   dialog = document.createElement('dialog');
   dialog.className = 'term-pop';
   dialog.setAttribute('aria-labelledby', NAME_ID);
@@ -165,7 +184,11 @@ export function initTermPopup() {
   let downOnBackdrop = false;
   dialog.addEventListener('pointerdown', (e) => (downOnBackdrop = e.target === dialog));
   dialog.addEventListener('click', (e) => {
-    if (e.target === dialog && downOnBackdrop) return close();
+    if (e.target === dialog && downOnBackdrop) {
+      // showModal() makes the page inert, so a tap on another page term lands here (F23).
+      const ref = pageTermAt(e.clientX, e.clientY);
+      return ref ? open(ref.dataset.term, ref) : close();
+    }
     if (e.target.closest('.tp-close')) return close();
     if (e.target.closest('.tp-back')) {
       stack.pop();
