@@ -1,5 +1,6 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, rememberName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
+import { setTerms, richText, plainText, addEnglishAll } from '/shared/terms.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -9,8 +10,11 @@ const character = (id) => CHARACTERS.find((c) => c.id === id);
 const $app = document.getElementById('app');
 const base = (code) => `/session-one/${code}`;
 
+// Content text goes through richText (HTML) or plainText (attributes, labels):
+// raw [[term]] markup never reaches the screen. Each screen then gets its first-mention English.
 function screen(html) {
   $app.innerHTML = html;
+  addEnglishAll($app);
   window.scrollTo(0, 0);
 }
 
@@ -24,7 +28,9 @@ const CHOICES = [
 async function loadContent(code, key) {
   const q = new URLSearchParams({ code, pid: playerId() });
   if (key) q.set('key', key);
-  ({ commonLore: COMMON_LORE, characters: CHARACTERS } = await api('GET', `/api/s1/content?${q}`));
+  let terms;
+  ({ commonLore: COMMON_LORE, characters: CHARACTERS, terms } = await api('GET', `/api/s1/content?${q}`));
+  setTerms(terms);
 }
 
 // A broken content file: show the parser's message (file and line), not a blank page.
@@ -260,7 +266,7 @@ const canGo = () => !!state.choice && (state.choice !== 'rename' || !!state.newN
 const loreSection = (items, cls, heading) =>
   items?.length
     ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => `
-        <div class="lore-item">${it.title ? `<h3 class="lore-t">${esc(it.title)}</h3>` : ''}<p>${esc(it.text)}</p></div>`).join('')}</section>`
+        <div class="lore-item">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}<p>${richText(it.text)}</p></div>`).join('')}</section>`
     : '';
 const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע') =>
   `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים')}${loreSection(st.secret, 'lore-secret', secretHeading)}</div>`;
@@ -272,8 +278,8 @@ function renderCommon() {
     ${topbar()}
     <main class="wrap q">
       <div class="kicker">${esc(shownName())} · ${esc(c.cls)}</div>
-      <h1 class="q-title">${esc(COMMON_LORE.title)}</h1>
-      ${COMMON_LORE.prompt ? `<p class="lead step-intro">${esc(COMMON_LORE.prompt)}</p>` : ''}
+      <h1 class="q-title">${richText(COMMON_LORE.title)}</h1>
+      ${COMMON_LORE.prompt ? `<p class="lead step-intro">${richText(COMMON_LORE.prompt)}</p>` : ''}
       ${loreHtml(COMMON_LORE)}
       <div class="footer"><button class="cta" id="next">${icon('chevL')}<span>המשך</span></button></div>
     </main>`);
@@ -309,9 +315,9 @@ function renderStep(i) {
           <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}">
             ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
             <span class="opt-text">
-              <span class="opt-label">${esc(o.label)}</span>
-              ${o.subtitle ? `<span class="opt-sub">${esc(o.subtitle)}</span>` : ''}
-              ${o.description ? `<span class="opt-desc">${esc(o.description)}</span>` : ''}
+              <span class="opt-label">${richText(o.label, { inert: true })}</span>
+              ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
+              ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
             </span>
             <span class="opt-check">${icon('check')}</span>
           </button>`).join('')}</div>${withOther ? `
@@ -323,9 +329,9 @@ function renderStep(i) {
     ${topbar(i, steps.length)}
     <main class="wrap q">
       <div class="kicker">${esc(shownName())} · ${esc(c.cls)}</div>
-      <h1 class="q-title">${esc(st.title || st.prompt || '')}</h1>
-      ${st.title && st.prompt ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
-      ${st.hint ? `<p class="hint">${esc(st.hint)}</p>` : ''}
+      <h1 class="q-title">${richText(st.title || st.prompt || '')}</h1>
+      ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
+      ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
       ${body}
       <div class="footer ${st.optional ? 'stack' : ''}">
         <button class="cta" id="next">${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button>
@@ -422,7 +428,7 @@ async function renderDm(code) {
     return screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
   }
   const choiceLabel = (id) => CHOICES.find((o) => o.id === id)?.label || '—';
-  const label = (st, v) => st.options.find((o) => o.id === v)?.label || v;
+  const label = (st, v) => plainText(st.options.find((o) => o.id === v)?.label || v);
   const answerText = (st, a) => {
     const v = a?.[st.id];
     if (st.type !== 'choice') return v;
@@ -436,7 +442,7 @@ async function renderDm(code) {
       const steps = (c?.steps || []).filter((s) => s.type !== 'info'); // info steps hold no answer
       const known = new Set(steps.flatMap((s) => [s.id, `${s.id}_other`]));
       const answers = [
-        ...steps.map((st) => [st.title || st.prompt, answerText(st, p.answers)]),
+        ...steps.map((st) => [plainText(st.title || st.prompt), answerText(st, p.answers)]),
         ...Object.entries(p.answers || {}).filter(([k]) => !known.has(k)), // answers to steps since removed
       ];
       return `
@@ -484,9 +490,9 @@ async function renderLore(code) {
     <div class="opt opt-card">
       ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
       <span class="opt-text">
-        <span class="opt-label">${esc(o.label)}</span>
-        ${o.subtitle ? `<span class="opt-sub">${esc(o.subtitle)}</span>` : ''}
-        ${o.description ? `<span class="opt-desc">${esc(o.description)}</span>` : ''}
+        <span class="opt-label">${richText(o.label, { inert: true })}</span>
+        ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
+        ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
       </span>
     </div>`;
   const stepHtml = (c, st) => {
@@ -501,11 +507,11 @@ async function renderLore(code) {
         ? `<div class="grid one cards">${st.options.map(card).join('')}</div>`
         : '';
     return `
-      <section class="lore-step">
+      <section class="lore-step" data-term-scope>
         <div class="kicker">${esc(tags)}</div>
-        <h3 class="q-title small">${esc(st.title || st.prompt || '')}</h3>
-        ${st.title && st.prompt ? `<p class="lead step-intro">${esc(st.prompt)}</p>` : ''}
-        ${st.hint ? `<p class="hint">${esc(st.hint)}</p>` : ''}
+        <h3 class="q-title small">${richText(st.title || st.prompt || '')}</h3>
+        ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
+        ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
         ${body}
       </section>`;
   };
@@ -520,8 +526,8 @@ async function renderLore(code) {
       <h1 class="q-title">סשן ראשון: כל הלור והבחירות</h1>
       <section class="dm">
         <h2>${icon('eye')} רק ל-DM</h2>
-        <details class="card dm-player" open>
-          <summary>${esc(COMMON_LORE.title)} (כל השחקנים)</summary>
+        <details class="card dm-player" open data-term-scope>
+          <summary>${richText(COMMON_LORE.title, { inert: true })} (כל השחקנים)</summary>
           ${loreHtml(COMMON_LORE)}
         </details>
         ${chars}

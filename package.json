@@ -6,7 +6,8 @@
   "description": "Small D&D tools for the group (Hebrew). First tool: Session Zero.",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"

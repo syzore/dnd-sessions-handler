@@ -32,6 +32,8 @@ button, input, textarea { font: inherit; color: inherit; }
 a { color: inherit; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); font-weight: 400; }
+/* Session One term references: the English after a term's first mention on a screen (D5) */
+.term-en { color: var(--muted); font-weight: 400; font-size: 0.85em; unicode-bidi: isolate; white-space: nowrap; }
 
 /* ---------- icons ---------- */
 .ic { width: 100%; height: 100%; display: block; }

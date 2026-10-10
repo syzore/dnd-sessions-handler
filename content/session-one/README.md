@@ -8,10 +8,17 @@ All Session One characters and lore live here as Markdown. Edit, save, refresh t
 world.md                    מה כולם יודעים על העולם / the world page every player sees
 characters/<id>.md          דמות אחת לכל קובץ / one character per file
 lists/<name>.md             רשימת אפשרויות משותפת / a shared option list (use: <name>)
+terms/<any>.md              מונחים: אלים, מקומות, גזעים... / terms: gods, places, races...
 ```
 
 אם יש טעות בקובץ, הדף מציג הודעה עם שם הקובץ ומספר השורה.
 If a file has a mistake, the page shows a message with the file name and line number.
+
+## 🚀 לפני העלאה / Before deploy
+
+מריצים `npm test` לפני `railway up`. הבדיקה טוענת את כל התיקייה הזו ונכשלת על כל טעות בתוכן, כולל הפניה למונח שלא קיים.
+
+Run `npm test` before `railway up`. It loads this whole folder and fails on any content mistake, including a reference to a term that does not exist.
 
 ## ⚠️ מזהים / Ids
 
@@ -149,6 +156,82 @@ subtitle: דרקון הפלטינה
 ## choice: god
 use: gods
 ```
+
+## מונחים / Terms
+
+מונח הוא דבר בעולם שיש לו שם: אל, מקום, גזע, מקצוע, פלג, דמות, מושג או רקע. כל מונח כתוב פעם אחת בקובץ בתיקייה `terms/`. את שמות הקבצים בוחרים חופשי (למשל `gods.md`, `places.md`); השורה `category:` קובעת את הקטגוריה, לא הקובץ.
+
+A term is a named thing in the world: a god, place, race, class, faction, person, concept or background. Each term is written once, in a file under `terms/`. File names are free (e.g. `gods.md`, `places.md`); the `category:` line sets the category, not the file.
+
+```markdown
+# אלים
+
+<!-- sources: ...; uncertain: ... (הערות בשבילך, לא מוצגות / notes for you, not shown) -->
+
+### ולס
+id: veles
+en: Veles
+category: god
+aliases: וֶלֶס, נחש-העולם
+image: https://example.org/veles.jpg
+link: Midgard Wiki — https://example.org/wiki/Veles
+
+נחש-העולם, שמתפתל סביב קצה הדיסקה. אבי [[baal]].
+```
+
+| key | |
+| --- | --- |
+| `### <שם>` | השם בעברית, בלי אימוג'י / the Hebrew name, no emoji |
+| `id` | חובה. אותיות לטיניות קטנות, ספרות ו-`_`, ייחודי בכל קבצי המונחים / required; Latin lowercase, digits, `_`; unique across all term files |
+| `en` | חובה. השם באנגלית / required; the English name |
+| `category` | חובה. אחת מהקטגוריות בטבלה למטה / required; one of the categories below |
+| `aliases` | שמות או כתיבים אחרים, מופרדים בפסיק / other names or spellings, comma-separated |
+| `image` | כתובת `https://` של תמונה, עד 3 שורות (הבאות הן גיבוי) / an `https://` image URL, up to 3 lines (the later ones are fallbacks) |
+| `link` | `כותרת — https://...` (הכותרת לא חובה), אפשר כמה שורות / `title — https://...` (title optional), can repeat |
+| תיאור / blurb | אחרי שורה ריקה, פסקאות בעברית. אפשר להפנות בהן למונחים אחרים / after a blank line, Hebrew paragraphs; may reference other terms |
+
+רק כתובות `https://`. כל מפתח חוץ מ-`image` ו-`link` מופיע פעם אחת. מונח בלי תיאור, תמונה וקישור מוסיף רק את השם באנגלית.
+
+Only `https://` URLs. Each key except `image` and `link` appears once. A term with no blurb, image or link only adds the English name.
+
+| `category` | עברית / Hebrew |
+| --- | --- |
+| `race` | גזע |
+| `class` | מקצוע |
+| `place` | מקום |
+| `god` | אל |
+| `faction` | פלג |
+| `person` | דמות |
+| `concept` | מושג |
+| `background` | רקע |
+
+### הפניה למונח / A term reference
+
+בטקסט כותבים `[[id]]`, והדף מציג את השם בעברית של המונח. כשהמילה בטקסט שונה (נטייה, כתיב אחר), כותבים `[[id|הטקסט]]`. אות שימוש נשארת מחוץ לסוגריים:
+
+In the text, write `[[id]]` and the page shows the term's Hebrew name. When the word differs (an inflection, another spelling), write `[[id|the text]]`. A prefix letter stays outside the brackets:
+
+```markdown
+- **דיסקה צפה** סביב הקצה מתפתל [[veles]] נחש-העולם.
+- דת המדינה היא אלי הדרקונים, [[baal]] ו[[veles|וֶלֶס]].
+```
+
+- **איפה מותר / Where allowed:** `title`, `prompt`, `hint`, פריטי לור (כותרת וטקסט, גם ב-`lists/`), שם אפשרות, `subtitle` ותיאור, ותיאור של מונח. בשום מקום אחר (front matter, `id`, `use`, מפתחות של מונח) / `title`, `prompt`, `hint`, lore bullets (title and text, `lists/` too), option label, `subtitle` and description, and term blurbs. Nowhere else (front matter, `id`, `use`, term keys).
+- **הפניה מתחילה ונגמרת באותה שורה / A reference starts and ends on one line.**
+- **מזהה שלא קיים הוא טעות / An unknown id is a mistake:** הדף מציג את הודעת השגיאה עם קובץ ושורה, ו-`npm test` נכשל / the page shows the error with file and line, and `npm test` fails.
+- **הדף לא מחפש שמות בטקסט / The page never searches the text for names:** רק מה שמסומן ב-`[[...]]` הוא הפניה / only `[[...]]` marks a reference.
+
+### השם באנגלית / The English name
+
+בכל מסך, בפעם הראשונה שמונח מופיע, הדף מוסיף אחריו את השם באנגלית מהשורה `en:`, למשל "ולס (Veles)". **לא כותבים את האנגלית בסוגריים ביד**: היא תופיע פעמיים.
+
+On each screen, the first time a term appears, the page adds its English name from the `en:` line after it, e.g. "ולס (Veles)". **Do not type the English in parentheses by hand**: it would show twice.
+
+### שינוי מזהה של מונח / Renaming a term id
+
+שום תשובה של שחקן לא שומרת מזהה של מונח, אז מותר לשנות אותו, בתנאי שמשנים גם כל הפניה אליו. `npm test` מראה כל הפניה שנשארה בלי מונח. (מזהים של דמות, שלב ואפשרות: לא משנים, כמו למעלה.)
+
+No player answer saves a term id, so it may change if every reference to it changes too. `npm test` lists every reference left without a term. (Character, step and option ids: never change them, as above.)
 
 ## תשובות שמורות / Saved answers (for the code)
 
