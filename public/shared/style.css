@@ -599,9 +599,15 @@ html.tp-lock, html.tp-lock body { overflow: hidden; }
 .tp-link-host { color: var(--muted); font-size: 13px; }
 .tp-link-ic { width: 18px; height: 18px; flex: none; color: var(--gold); }
 @media (max-width: 560px) {
+  /* Pinned to the bottom of what the user sees. term-popup.js sets --tp-bottom (gap between
+     the layout viewport's bottom and the visual viewport's: phone toolbars, pinch zoom) and
+     --tp-vh (visual viewport height) while open. Fallbacks first: vh is the large viewport,
+     taller than the visible area when a toolbar shows. */
   .term-pop {
-    width: 100%; max-width: 100%; max-height: 85vh;
-    margin: auto 0 0; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0;
+    position: fixed; inset: auto 0 0 0;
+    width: 100%; max-width: 100%; max-height: 85vh; max-height: 85svh;
+    max-height: min(85dvh, calc(var(--tp-vh, 9999px) * .85));
+    margin: auto 0 var(--tp-bottom, 0); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0;
   }
   .tp-sheet { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
 }

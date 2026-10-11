@@ -98,3 +98,15 @@ test('optionLabel: no term, or a term the client lacks, is the plain inert label
   assert.equal(optionLabel({ label: 'סתם [[baal]]' }), 'סתם <span class="term-ref term-inert" data-term="baal">בעל</span>');
   assert.equal(optionLabel({ label: 'בעל', term: 'nope' }), 'בעל');
 });
+
+// The sheet must stay pinned to the visible bottom on phones. jsdom has no layout, so this
+// pins the CSS contract; the position check runs in a real browser (see the fix commit).
+test('narrow-screen sheet: fixed, bottom-pinned, dvh max-height after a vh fallback', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
+  const block = css.match(/@media \(max-width: 560px\) \{\s*\/\*[\s\S]*?\*\/\s*\.term-pop \{([^}]*)\}/)?.[1];
+  assert.ok(block, 'narrow .term-pop block found');
+  assert.match(block, /position: fixed; inset: auto 0 0 0/);
+  assert.match(block, /max-height: 85vh;[^]*max-height: 85svh;[^]*max-height: min\(85dvh,/);
+  assert.match(block, /margin: auto 0 var\(--tp-bottom, 0\)/);
+});

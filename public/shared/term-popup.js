@@ -113,6 +113,17 @@ function show() {
   sheet.querySelector('.tp-close').focus();
 }
 
+// Phones: the layout viewport (where position:fixed lives) can be taller than the visual one
+// (toolbars, pinch zoom), which hides a bottom-pinned sheet. Tell the CSS where the visible
+// bottom is. The CSS reads --tp-bottom and --tp-vh in its narrow-screen block only.
+function syncViewport() {
+  const vv = window.visualViewport;
+  if (!vv || !dialog) return;
+  const gap = document.documentElement.clientHeight - (vv.offsetTop + vv.height);
+  dialog.style.setProperty('--tp-bottom', `${Math.max(0, gap)}px`);
+  dialog.style.setProperty('--tp-vh', `${vv.height}px`);
+}
+
 function open(id, from) {
   if (!termOf(id)) return;
   // Esc closed the dialog natively and its close event is still queued: clean up first,
@@ -128,6 +139,9 @@ function open(id, from) {
   stack = [id];
   document.documentElement.classList.add('tp-lock');
   dialog.showModal();
+  syncViewport();
+  window.visualViewport?.addEventListener('resize', syncViewport);
+  window.visualViewport?.addEventListener('scroll', syncViewport);
   // history.back() is async: pushing before it lands would let it pop the new entry.
   if (skipPops) wantPush = true;
   else pushEntry();
@@ -163,6 +177,8 @@ function finish() {
   if (!active) return;
   active = false;
   document.documentElement.classList.remove('tp-lock');
+  window.visualViewport?.removeEventListener('resize', syncViewport);
+  window.visualViewport?.removeEventListener('scroll', syncViewport);
   stack = [];
   wantPush = false;
   render++;
