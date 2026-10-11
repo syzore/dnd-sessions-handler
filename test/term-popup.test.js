@@ -99,15 +99,17 @@ test('optionLabel: no term, or a term the client lacks, is the plain inert label
   assert.equal(optionLabel({ label: 'בעל', term: 'nope' }), 'בעל');
 });
 
-// The sheet must stay pinned to the visible bottom on phones. jsdom has no layout, so this
-// pins the CSS contract. The position check was run by hand with headless playwright
-// (Chromium 390x844 at page scale 1 and 1.6, and WebKit iPhone 13); it is not in CI.
-test('narrow-screen sheet: fixed, bottom-pinned, dvh max-height after a vh fallback', async () => {
+// On phones the popup is a card pinned to the TOP: the bottom edge is where toolbars sit.
+// jsdom has no layout, so this pins the CSS contract (every dialog:modal default is overridden).
+// The position check was run by hand with headless playwright (Chromium 390x844 at page scale
+// 1 and 1.6, WebKit iPhone 13); it is not in CI.
+test('narrow-screen card: fixed to the top, UA dialog insets/margins/caps overridden, svh max-height', async () => {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
   const block = css.match(/@media \(max-width: 560px\) \{\s*\/\*[\s\S]*?\*\/\s*\.term-pop \{([^}]*)\}/)?.[1];
   assert.ok(block, 'narrow .term-pop block found');
-  assert.match(block, /position: fixed; inset: auto 0 0 0/);
-  assert.match(block, /max-height: 85vh;[^]*max-height: 85svh;[^]*max-height: min\(85dvh,/);
-  assert.match(block, /margin: auto 0 var\(--tp-bottom, 0\)/);
+  assert.match(block, /position: fixed; top: max\(env\(safe-area-inset-top\), 12px\); right: 12px; bottom: auto; left: 12px/);
+  assert.match(block, /max-width: none; margin: 0/);
+  assert.match(block, /max-height: calc\(100vh - [^;]*;[^]*max-height: calc\(100svh - /);
+  assert.doesNotMatch(block, /tp-bottom|tp-vh/);
 });
