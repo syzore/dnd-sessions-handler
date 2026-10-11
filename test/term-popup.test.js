@@ -114,7 +114,7 @@ test('narrow-screen card: plain fallbacks first, enhancements after, UA dialog s
   assert.doesNotMatch(block, /env\(|svh/, 'the plain block has no enhanced values');
   // enhancements come later, so a browser without them keeps the plain values
   assert.match(css, /@supports \(top: max\(env\(safe-area-inset-top\), 12px\)\) \{\s*\.term-pop, \.term-pop\.tp-nomodal \{ top: max\(/);
-  assert.match(css, /@supports \(height: 1svh\) \{\s*\.term-pop \{ max-height: calc\(100svh - /);
+  assert.match(css, /@supports \(height: 1svh\) \{\s*\.term-pop, \.term-pop\.tp-nomodal \{ max-height: calc\(100svh - /);
   // the centred no-showModal base sits above the phone block (equal specificity: later wins)
   const base = css.indexOf('.term-pop.tp-nomodal { position: fixed; inset: 0; margin: auto; height: fit-content;');
   assert.ok(base > 0 && base < css.indexOf('@media (max-width: 560px) {\n  /* A card at the TOP'), 'nomodal base precedes the phone block');
