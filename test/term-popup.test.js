@@ -106,15 +106,18 @@ test('optionLabel: no term, or a term the client lacks, is the plain inert label
 test('narrow-screen card: plain fallbacks first, enhancements after, UA dialog styles neutralised', async () => {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
-  const block = css.match(/@media \(max-width: 560px\) \{\s*\/\*[\s\S]*?\*\/\s*\.term-pop \{([^}]*)\}/)?.[1];
+  const block = css.match(/@media \(max-width: 560px\) \{\s*\/\*[\s\S]*?\*\/\s*\.term-pop, \.term-pop\.tp-nomodal \{([^}]*)\}/)?.[1];
   assert.ok(block, 'narrow .term-pop block found');
   assert.match(block, /position: fixed; inset: auto; top: 12px; right: 12px; bottom: auto; left: 12px/);
   assert.match(block, /width: auto; height: auto; max-width: none; margin: 0/);
   assert.match(block, /max-height: 80vh/);
   assert.doesNotMatch(block, /env\(|svh/, 'the plain block has no enhanced values');
   // enhancements come later, so a browser without them keeps the plain values
-  assert.match(css, /@supports \(top: max\(env\(safe-area-inset-top\), 12px\)\) \{\s*\.term-pop \{ top: max\(/);
+  assert.match(css, /@supports \(top: max\(env\(safe-area-inset-top\), 12px\)\) \{\s*\.term-pop, \.term-pop\.tp-nomodal \{ top: max\(/);
   assert.match(css, /@supports \(height: 1svh\) \{\s*\.term-pop \{ max-height: calc\(100svh - /);
+  // the centred no-showModal base sits above the phone block (equal specificity: later wins)
+  const base = css.indexOf('.term-pop.tp-nomodal { position: fixed; inset: 0; margin: auto; height: fit-content;');
+  assert.ok(base > 0 && base < css.indexOf('@media (max-width: 560px) {\n  /* A card at the TOP'), 'nomodal base precedes the phone block');
   assert.doesNotMatch(block, /tp-bottom|tp-vh/);
 });
 
@@ -123,4 +126,9 @@ test('no showModal: term-popup.js falls back to [open] plus an overlay', async (
   const js = readFileSync(new URL('../public/shared/term-popup.js', import.meta.url), 'utf8');
   assert.match(js, /setAttribute\('open', ''\)/);
   assert.match(js, /\.tp-backdrop|'tp-backdrop'/);
+  // the page behind the overlay is unreachable, and undone on close
+  assert.match(js, /el\.inert = true/);
+  assert.match(js, /setAttribute\('aria-modal', 'true'\)/);
+  assert.match(js, /el\.inert = false/);
+  assert.match(js, /removeAttribute\('aria-modal'\)/);
 });

@@ -91,6 +91,7 @@ let skipPops = 0; // popstate events still to come from our own history.back()
 let wantPush = false; // reopened before that back landed: push once it has
 let render = 0; // guards image error handlers from an earlier render
 let active = false; // opened and not yet cleaned up
+let inerted = []; // page siblings made inert while the fallback is open
 let overlay = null; // stands in for ::backdrop when the browser has no showModal()
 const canModal = () => typeof HTMLDialogElement !== 'undefined' && typeof HTMLDialogElement.prototype.showModal === 'function';
 
@@ -99,6 +100,8 @@ function openDialog() {
   if (canModal()) return dialog.showModal();
   dialog.setAttribute('open', '');
   dialog.classList.add('tp-nomodal');
+  dialog.setAttribute('aria-modal', 'true');
+  for (const el of document.body.children) if (el !== dialog && !el.inert) { el.inert = true; inerted.push(el); }
   overlay = document.createElement('div');
   overlay.className = 'tp-backdrop';
   overlay.addEventListener('click', (e) => {
@@ -115,6 +118,9 @@ function closeDialog() {
     document.removeEventListener('keydown', onEsc);
     dialog.removeAttribute('open');
     dialog.classList.remove('tp-nomodal');
+    dialog.removeAttribute('aria-modal');
+    for (const el of inerted) el.inert = false;
+    inerted = [];
   } else if (dialog.open) dialog.close();
 }
 function onEsc(e) {
