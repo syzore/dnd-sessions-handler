@@ -59,7 +59,7 @@ function send(res, status, body, headers = {}) {
   res.end(body);
 }
 const json = (res, status, obj) =>
-  send(res, status, JSON.stringify(obj), { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  send(res, status, JSON.stringify(obj), { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-build': BUILD });
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -91,9 +91,27 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
+// A hash of every client file, taken at startup (a deploy restarts the server). A page
+// carries it in <meta name="build"> and every API response repeats it, so a tab left open
+// across a deploy can tell its code is old (shared/lib.js, checkBuild).
+function buildId() {
+  const h = crypto.createHash('sha1');
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const f = path.join(d, e.name);
+      if (e.isDirectory()) walk(f);
+      else h.update(f.slice(PUBLIC.length)).update(fs.readFileSync(f));
+    }
+  };
+  walk(PUBLIC);
+  return h.digest('hex').slice(0, 12);
+}
+const BUILD = buildId();
+
 function serveFile(res, file) {
   fs.readFile(file, (err, buf) => {
     if (err) return send(res, 404, 'Not found');
+    if (path.extname(file) === '.html') buf = Buffer.from(String(buf).replaceAll('__BUILD__', BUILD));
     send(res, 200, buf, {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'cache-control': 'no-cache',

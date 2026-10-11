@@ -4,12 +4,33 @@
 export const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+// A tab left open across a deploy keeps its old JS. The server stamps the page
+// (<meta name="build">) and every API response (x-build) with the same id; when they differ
+// this page's code is old. Pages without the meta tag opt out.
+export const staleBuild = (page, server) => !!page && !!server && page !== server;
+
+function offerReload() {
+  if (typeof document === 'undefined' || document.getElementById('stale-build')) return;
+  const bar = document.createElement('div');
+  bar.id = 'stale-build';
+  bar.setAttribute('role', 'status');
+  bar.innerHTML = '<span>יצאה גרסה חדשה של הדף.</span><button type="button">לרענון</button>';
+  bar.querySelector('button').onclick = () => location.reload();
+  document.body.append(bar);
+}
+
+function checkBuild(r) {
+  const page = typeof document === 'undefined' ? null : document.querySelector('meta[name="build"]')?.content;
+  if (staleBuild(page, r.headers.get('x-build'))) offerReload();
+}
+
 export async function api(method, url, body) {
   const r = await fetch(url, {
     method,
     headers: body ? { 'content-type': 'application/json' } : {},
     body: body ? JSON.stringify(body) : undefined,
   });
+  checkBuild(r);
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(j.error || 'משהו השתבש'), { status: r.status, body: j });
   return j;

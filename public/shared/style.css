@@ -641,3 +641,14 @@ html.tp-lock, html.tp-lock body { overflow: hidden; }
 .ed-field textarea { overflow: hidden; resize: none; min-height: 48px; }
 .ed-extra .cta { margin-top: 10px; }
 .ed-card .ed-form { padding: 14px; border: 2px solid var(--gold); border-radius: var(--radius); background: var(--card); }
+
+/* a tab left open across a deploy (shared/lib.js, checkBuild) */
+#stale-build {
+  position: fixed; inset: auto 12px calc(12px + env(safe-area-inset-bottom)) 12px; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius); border: 2px solid var(--gold);
+  background: var(--card-hi); color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+#stale-build button {
+  padding: 8px 16px; border-radius: 99px; border: 0; background: var(--gold); color: #1b1408; font-weight: 700; cursor: pointer;
+}
