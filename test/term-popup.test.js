@@ -100,7 +100,8 @@ test('optionLabel: no term, or a term the client lacks, is the plain inert label
 });
 
 // The sheet must stay pinned to the visible bottom on phones. jsdom has no layout, so this
-// pins the CSS contract; the position check runs in a real browser (see the fix commit).
+// pins the CSS contract. The position check was run by hand with headless playwright
+// (Chromium 390x844 at page scale 1 and 1.6, and WebKit iPhone 13); it is not in CI.
 test('narrow-screen sheet: fixed, bottom-pinned, dvh max-height after a vh fallback', async () => {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');

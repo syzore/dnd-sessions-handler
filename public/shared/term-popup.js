@@ -110,7 +110,7 @@ function show() {
     };
     img.onload = () => n === render && img.closest('.tp-img').classList.add('loaded');
   }
-  sheet.querySelector('.tp-close').focus();
+  sheet.querySelector('.tp-close').focus({ preventScroll: true });
 }
 
 // Phones: the layout viewport (where position:fixed lives) can be taller than the visual one
