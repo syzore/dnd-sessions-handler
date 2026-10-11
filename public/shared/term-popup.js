@@ -91,6 +91,35 @@ let skipPops = 0; // popstate events still to come from our own history.back()
 let wantPush = false; // reopened before that back landed: push once it has
 let render = 0; // guards image error handlers from an earlier render
 let active = false; // opened and not yet cleaned up
+let overlay = null; // stands in for ::backdrop when the browser has no showModal()
+const canModal = () => typeof HTMLDialogElement !== 'undefined' && typeof HTMLDialogElement.prototype.showModal === 'function';
+
+// Older WebViews lack <dialog>.showModal(): open it by attribute and dim the page with a div.
+function openDialog() {
+  if (canModal()) return dialog.showModal();
+  dialog.setAttribute('open', '');
+  dialog.classList.add('tp-nomodal');
+  overlay = document.createElement('div');
+  overlay.className = 'tp-backdrop';
+  overlay.addEventListener('click', (e) => {
+    const ref = pageTermAt(e.clientX, e.clientY);
+    return ref ? open(triggerId(ref), ref) : close();
+  });
+  document.body.append(overlay);
+  document.addEventListener('keydown', onEsc);
+}
+function closeDialog() {
+  if (overlay) {
+    overlay.remove();
+    overlay = null;
+    document.removeEventListener('keydown', onEsc);
+    dialog.removeAttribute('open');
+    dialog.classList.remove('tp-nomodal');
+  } else if (dialog.open) dialog.close();
+}
+function onEsc(e) {
+  if (e.key === 'Escape' && active) close();
+}
 
 function show() {
   const t = termOf(stack[stack.length - 1]);
@@ -117,7 +146,7 @@ function open(id, from) {
   if (!termOf(id)) return;
   // Esc closed the dialog natively and its close event is still queued: clean up first,
   // or this open would push a second history entry.
-  if (active && !dialog.open) finish();
+  if (active && !dialog.open && !overlay) finish();
   if (dialog.open) {
     opener = from; // a tap on another page term replaces the content (F23)
     stack = [id];
@@ -127,7 +156,7 @@ function open(id, from) {
   active = true;
   stack = [id];
   document.documentElement.classList.add('tp-lock');
-  dialog.showModal();
+  openDialog();
   // history.back() is async: pushing before it lands would let it pop the new entry.
   if (skipPops) wantPush = true;
   else pushEntry();
@@ -149,14 +178,14 @@ function navigate(id) {
 // X, backdrop and browser back. Cleans up at once: the dialog's own close event comes a
 // task later, after a quick reopen could already have happened.
 function close() {
-  if (dialog.open) dialog.close();
+  closeDialog();
   finish();
 }
 
 // Esc closes the dialog natively; its close event lands here. Ignore it when the dialog
 // is open again (reopened before the event arrived) or already cleaned up.
 function onCloseEvent() {
-  if (!dialog.open && active) finish();
+  if (!dialog.open && active && !overlay) finish();
 }
 
 function finish() {
@@ -184,7 +213,7 @@ function finish() {
 const inside = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 function coveredAt(x, y, el) {
   for (const c of document.body.querySelectorAll('*')) {
-    if (c === dialog || c.contains(el)) continue;
+    if (c === dialog || c === overlay || c.contains(el)) continue;
     const pos = getComputedStyle(c).position;
     if ((pos === 'sticky' || pos === 'fixed') && inside(x, y, c.getBoundingClientRect())) return true;
   }

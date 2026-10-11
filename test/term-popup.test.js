@@ -103,13 +103,24 @@ test('optionLabel: no term, or a term the client lacks, is the plain inert label
 // jsdom has no layout, so this pins the CSS contract (every dialog:modal default is overridden).
 // The position check was run by hand with headless playwright (Chromium 390x844 at page scale
 // 1 and 1.6, WebKit iPhone 13); it is not in CI.
-test('narrow-screen card: fixed to the top, UA dialog insets/margins/caps overridden, svh max-height', async () => {
+test('narrow-screen card: plain fallbacks first, enhancements after, UA dialog styles neutralised', async () => {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
   const block = css.match(/@media \(max-width: 560px\) \{\s*\/\*[\s\S]*?\*\/\s*\.term-pop \{([^}]*)\}/)?.[1];
   assert.ok(block, 'narrow .term-pop block found');
-  assert.match(block, /position: fixed; top: max\(env\(safe-area-inset-top\), 12px\); right: 12px; bottom: auto; left: 12px/);
-  assert.match(block, /max-width: none; margin: 0/);
-  assert.match(block, /max-height: calc\(100vh - [^;]*;[^]*max-height: calc\(100svh - /);
+  assert.match(block, /position: fixed; inset: auto; top: 12px; right: 12px; bottom: auto; left: 12px/);
+  assert.match(block, /width: auto; height: auto; max-width: none; margin: 0/);
+  assert.match(block, /max-height: 80vh/);
+  assert.doesNotMatch(block, /env\(|svh/, 'the plain block has no enhanced values');
+  // enhancements come later, so a browser without them keeps the plain values
+  assert.match(css, /@supports \(top: max\(env\(safe-area-inset-top\), 12px\)\) \{\s*\.term-pop \{ top: max\(/);
+  assert.match(css, /@supports \(height: 1svh\) \{\s*\.term-pop \{ max-height: calc\(100svh - /);
   assert.doesNotMatch(block, /tp-bottom|tp-vh/);
+});
+
+test('no showModal: term-popup.js falls back to [open] plus an overlay', async () => {
+  const { readFileSync } = await import('node:fs');
+  const js = readFileSync(new URL('../public/shared/term-popup.js', import.meta.url), 'utf8');
+  assert.match(js, /setAttribute\('open', ''\)/);
+  assert.match(js, /\.tp-backdrop|'tp-backdrop'/);
 });
