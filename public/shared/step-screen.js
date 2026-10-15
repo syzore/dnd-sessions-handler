@@ -89,7 +89,7 @@ export function stepBodyHtml(st, answers) {
               ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
             </span>
             <span class="opt-check">${icon('check')}</span>
-          </button>`)).join('')}${st.random && !st.multi ? randomCardHtml(cards) : ''}</div>${withOther ? `
+          </button>`)).join('')}${st.random && !st.multi ? randomCardHtml(cards) : ''}</div>${st.random && !st.multi ? '<p class="sr-only" id="random-live" aria-live="polite"></p>' : ''}${withOther ? `
         <label class="other-box"><span>משהו אחר / לכתוב בעצמי</span>
           <textarea class="big-text" id="other" rows="3" maxlength="1000">${esc(answers[`${st.id}_other`] || '')}</textarea></label>` : ''}`
       : `<textarea class="big-text" id="ans" rows="5" maxlength="2000">${esc(cur)}</textarea>`;
@@ -152,7 +152,10 @@ export function wireStep(root, { st, answers, onNext, onSkip }) {
           id = drawRandom(st.options, answers[st.id]);
           if (id == null) return;
           card = [...root.querySelectorAll('.opt')].find((x) => x.dataset.id === id);
-          card.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+          const reduced = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+          card.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+          const live = document.getElementById('random-live');
+          if (live) live.textContent = `נבחר: ${card.querySelector('.opt-label')?.textContent.trim() ?? id}`;
         }
         if (card.getAttribute('aria-disabled') === 'true') return;
         if (st.multi) {

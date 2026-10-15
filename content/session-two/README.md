@@ -93,6 +93,15 @@ Above the options the step shows the answer to that step, read-only. The target 
 context: rage_style
 ```
 
+שאלה משלך: `context: <מזהה שלב> | <שאלה>`. הטקסט אחרי `|` מחליף את השאלה שנגזרת מהשלב (הכותרת, ואם אין, ההנחיה). שימושי כשהכותרת היא כותרת רשימה ולא שאלה, כמו `god`. טקסט ריק אחרי `|` הוא טעות.
+
+Own question: `context: <step id> | <question>`. The text after `|` replaces the question taken from the target (its title, else its prompt). Use it when the title is a list heading, not a question (`god`). Nothing after `|` is an error.
+
+```markdown
+## choice: subclass
+context: god | לאיזה אל אתה מתפלל?
+```
+
 ### `count: <n>`
 
 רק בסשן שני, ורק בשלב בחירה עם `multi: true`. מספר שלם מ-2 עד מספר האפשרויות: השחקן חייב לבחור בדיוק כך. סשן ראשון דוחה אותו ("unknown key").

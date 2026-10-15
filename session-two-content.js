@@ -58,9 +58,9 @@ function claimWhen(seen, step, at, charId) {
 }
 
 // The context object a `context:` line becomes (D4).
-const contextOf = (target) => ({
+const contextOf = (target, question) => ({
   step: target.id,
-  question: target.title ?? target.prompt,
+  question: question ?? target.title ?? target.prompt,
   options: (target.options || []).map(({ id, label }) => ({ id, label })),
 });
 
@@ -141,10 +141,12 @@ function resolveFlow(charId, flow, s1Char, env) {
     }
     step = checkChoiceKeys(step, raw, at, out, fail, charId, env);
     if (raw.context) {
-      const target = out.find((s) => s.id === raw.context) || s1Char.steps.find((s) => s.id === raw.context);
-      if (!target) fail(at.context, `"context: ${raw.context}": character "${charId}" has no such earlier step, and no such Session One step`);
-      if (target.type === 'info') fail(at.context, `"context: ${raw.context}": an info step has no answer to show`);
-      step = { ...step, context: contextOf(target) };
+      const ref = raw.context;
+      const question = at.questions?.get(at.context); // the text after "|", if any (D4)
+      const target = out.find((s) => s.id === ref) || s1Char.steps.find((s) => s.id === ref);
+      if (!target) fail(at.context, `"context: ${ref}": character "${charId}" has no such earlier step, and no such Session One step`);
+      if (target.type === 'info') fail(at.context, `"context: ${ref}": an info step has no answer to show`);
+      step = { ...step, context: contextOf(target, question) };
     }
     out.push(step);
   }
@@ -173,9 +175,23 @@ export function loadSessionTwo({ s1Dir, s2Dir }) {
 
   const parse = (file, kind, lists, ext) => {
     const r = rel(file);
-    const parsed = parseFile(readDisk(s2Dir, file), r, kind, lists, terms, { key: file, ext });
+    // `context: <id> | <question>` (D4): Session One's parser takes a bare step id, so the "| ..." part is
+    // cut here (the line count stays) and kept by line number for resolveFlow.
+    const questions = new Map();
+    const text = readDisk(s2Dir, file)
+      .split('\n')
+      .map((line, i) => {
+        const m = /^(context:\s*[a-z0-9_]+)\s*\|(.*)$/.exec(line);
+        if (!m) return line;
+        const q = m[2].trim();
+        if (!q) throw new ContentError(`${r} line ${i + 1}: "${line.trim()}": nothing after "|"; write the question there, or drop the "|"`);
+        questions.set(i + 1, q);
+        return m[1];
+      })
+      .join('\n');
+    const parsed = parseFile(text, r, kind, lists, terms, { key: file, ext });
     checkRefs(parsed.lines, r, parsed.allowed, terms);
-    return { ...parsed, rel: r };
+    return { ...parsed, rel: r, questions };
   };
 
   const lists = {};
@@ -194,7 +210,7 @@ export function loadSessionTwo({ s1Dir, s2Dir }) {
   const shared = [];
   for (const f of mdFilesDisk(path.join(s2Dir, 'steps'))) {
     const p = parse(path.join('steps', f), 'world', lists, EXT_SHARED);
-    for (const s of p.steps) shared.push({ step: tidyStep(s), at: { ...p.at[s.id], rel: p.rel, shared: true } });
+    for (const s of p.steps) shared.push({ step: tidyStep(s), at: { ...p.at[s.id], rel: p.rel, shared: true, questions: p.questions } });
   }
 
   const characters = [];
@@ -210,7 +226,7 @@ export function loadSessionTwo({ s1Dir, s2Dir }) {
       throw new ContentError(`${p.rel} line ${p.frontLines.background}: background "${front.background}": there is no term "bg_${front.background}"`);
 
     const s1Char = s1.characters[s1Index];
-    const own = p.steps.map((s) => ({ step: tidyStep(s), at: { ...p.at[s.id], rel: p.rel } }));
+    const own = p.steps.map((s) => ({ step: tidyStep(s), at: { ...p.at[s.id], rel: p.rel, questions: p.questions } }));
     const sharedFlow = shared.map((x) => ({ step: structuredClone(x.step), at: x.at }));
     const cut = p.sharedAt ? p.sharedAt.index : own.length; // D13: "## shared" places the shared steps; none = at the end
     const flow = [...own.slice(0, cut), ...sharedFlow, ...own.slice(cut)];

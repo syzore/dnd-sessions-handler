@@ -109,3 +109,44 @@ test('markup: random step ends with the random card, only on single-choice', asy
   assert.match(html, /בחירה אקראית מתוך האפשרויות/);
   assert.ok(!stepBodyHtml({ id: 'r', type: 'choice', multi: true, random: true, options: opts }, {}).includes(RANDOM_CARD_ID));
 });
+
+test('markup: the random live region exists only when random is on (Session One markup unchanged)', async () => {
+  const { stepBodyHtml } = await loadScreen();
+  assert.match(stepBodyHtml({ id: 'r', type: 'choice', random: true, options: opts }, {}), /<p class="sr-only" id="random-live" aria-live="polite"><\/p>/);
+  for (const st of [{ id: 'a', type: 'choice', options: opts }, { id: 'm', type: 'choice', multi: true, random: true, options: opts }])
+    assert.ok(!stepBodyHtml(st, {}).includes('random-live'), st.id);
+});
+
+test('wiring: a random draw announces the pick and honours prefers-reduced-motion', async () => {
+  const { wireStep } = await loadScreen();
+  const run = (reduced) => {
+    const scrolls = [];
+    const live = { textContent: '' };
+    const mk = (id, label) => ({
+      dataset: { id },
+      getAttribute: () => null,
+      setAttribute() {},
+      classList: { toggle() {} },
+      querySelector: () => ({ textContent: ` ${label} ` }),
+      scrollIntoView: (o) => scrolls.push(o.behavior),
+    });
+    const cards = [mk('a', 'א'), mk('b', 'ב'), mk(RANDOM_CARD_ID, 'אקראי')];
+    const root = { querySelectorAll: () => cards };
+    globalThis.document = { getElementById: (i) => (i === 'random-live' ? live : { disabled: false }) };
+    globalThis.matchMedia = () => ({ matches: reduced });
+    const answers = {};
+    wireStep(root, { st: { id: 'r', type: 'choice', random: true, options: [{ id: 'a' }, { id: 'b' }] }, answers, onNext() {}, onSkip() {} });
+    cards[2].onclick();
+    return { scrolls, text: live.textContent, picked: answers.r };
+  };
+  try {
+    const a = run(true);
+    assert.deepEqual(a.scrolls, ['auto']);
+    assert.match(a.text, /^נבחר: [אב]$/);
+    assert.ok(['a', 'b'].includes(a.picked));
+    assert.deepEqual(run(false).scrolls, ['smooth']);
+  } finally {
+    delete globalThis.document;
+    delete globalThis.matchMedia;
+  }
+});

@@ -9,7 +9,7 @@ id: turator
 ## choice: subclass
 title: ⚔️ איזו שבועה נשבעת?
 prompt: ברמה 3 כל [[paladin]] נשבע שבועה, והיא קובעת איזה אביר הוא. בחר אחת מארבע השבועות של ספר השחקן.
-context: god
+context: god | לאיזה אל אתה נשבע?
 link: הפלדין בספר השחקן 2024 (באנגלית) — https://dnd2024.wikidot.com/paladin:main
 
 ### שבועת המסירות

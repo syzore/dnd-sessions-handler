@@ -125,7 +125,7 @@ Session One keeps rejecting these keys ("unknown key"), so its README stays true
 
 **`when: <step id> = <option id>`** or **`when: <step id> = _else`.** The step shows only when the effective answer of `<step id>` matches. `_else` shows when that step has an effective answer (a pick or free text) and no other `when:` on the same step id in this character's flow matches it. Output: `when: { step, value }`.
 
-**`context: <step id>`.** Above the options (or the text box) the step shows the effective answer of `<step id>` (D8). The target is a step earlier in this character's Session Two flow, or a choice or text step in the same character's Session One file. Output: `context: { step, question, options: [{ id, label }] }`, where `question` is the target's `title` or `prompt` and `options` are its option ids and labels (empty for a text step). The client needs these because a Session One-only step (`god`, `element`) is not in the Session Two content.
+**`context: <step id>`.** Above the options (or the text box) the step shows the effective answer of `<step id>` (D8). The target is a step earlier in this character's Session Two flow, or a choice or text step in the same character's Session One file. Output: `context: { step, question, options: [{ id, label }] }`, where `question` is the target's `title` or `prompt` (or the text after `|` in `context: <step id> | <question>`, see D14) and `options` are its option ids and labels (empty for a text step). The client needs these because a Session One-only step (`god`, `element`) is not in the Session Two content.
 
 Load-time checks, each a `ContentError` with file and line: see F1–F9.
 
@@ -180,7 +180,7 @@ The kicker name is `carried.newName` or the character's name (A5).
 
 **Context line.** When a step has `context` and its effective answer exists, a small block sits above the options, styled with the existing `.hint` class (no new colours):
 
-- line 1: the target's question as plain text, leading emoji removed (e.g. "מה היסוד שלך?");
+- line 1: the question as plain text, leading emoji removed (e.g. "מה היסוד שלך?"): the target's title or prompt, or the `| <question>` override of the `context:` line;
 - line 2: the answer labels joined by ", ", then "משהו אחר: <text>" if there is free text;
 - line 3, only for `s1` / `dm`: "מהסשן הראשון" or "נקבע על ידי ה-DM".
 
@@ -193,7 +193,7 @@ A label is found in `context.options`; else, for the `background` step, the Hebr
 | vilhelm | `element` | The damage element is the closest earlier answer to a wizard school. The Evoker card's subtitle names it as the closest fit. |
 | bebby | `rogue_type` | Urban thief / desert smuggler / foreign spy maps loosely onto Thief / Assassin. |
 | deq | `rage_style` | `on_evoker` is Razul's opinion of the wizard's magic, not of his own path; showing it would mislead. `rage_style` (primal vs juggernaut) is what separates Wild Heart / World Tree from Berserker. |
-| tenni, turator | `god` | A cleric domain and a paladin oath follow from the god. |
+| tenni, turator | `god \| <question>` | A cleric domain and a paladin oath follow from the god. The Session One `god` step's title is a list heading ("חמישה אלים שתוכלו לבחור בהם"), not a question, so both files override it ("לאיזה אל אתה מתפלל?" / "לאיזה אל אתה נשבע?"). |
 
 Why no preselection: a preselected card makes "המשך" enabled before the player chose anything, and none of these answers maps to exactly one subclass (`element: psychic` fits no school better than another). The cards' subtitles carry the lore fit instead.
 
@@ -325,6 +325,7 @@ All Session Two only; Session One keeps rejecting them as "unknown key" and its 
 - **F8 relaxed.** Several steps may share one `when: <target> = <value>` if all are in the same character file. Still errors: two shared steps with one target and value; a character step and a shared step with one target and value; two `_else` for one target in a flow.
 - **`count: <n>`.** Only on `multi: true` choice steps. Whole number from 2 to the number of options. Exactly `n` picks. Error otherwise, with file and line. Output: `count: n`.
 - **Option `when: <step> = <option id>`.** The option shows only when the effective answer of that step equals the id. Same checks as step `when` (F5, F6, F7); `= _else` on an option is an error; every step keeps at least one option without `when`. Output: `when: { step, value }` on the option.
+- **`context: <step id> | <question>`.** Optional text after `|` replaces the derived question (`title`, else `prompt`) of the context line. Both parts are trimmed. Nothing after `|` is an error with file and line; without `|` nothing changes. Session Two only (Session One still rejects `context:`). The step id keeps its rule (Latin lowercase letters, digits, `_`).
 - **`random: true`.** Only on single-answer choice steps. Output: `random: true`. `random: false` is accepted and dropped.
 - **When-value rule.** A step or option `when: <target> = <value>` needs `<value>` to be an option id of the target step (`_else` on a step excepted). For target `background` it is also accepted when it equals the character's own `background:` override or when a term `bg_<value>` exists (overrides and custom backgrounds are no option of the `from` step). Otherwise an error at the `when:` line.
 - **`## shared` placement marker.** A line `## shared` (a heading with no type or id, no keys, no text) in a character file marks where the shared steps (D5) go in that character's flow. At most once per file; without it they go after the file's own steps (as before). Errors, with file and line: a second `## shared` in one file; `## shared` in a shared step file (`steps/*.md`); keys or text under it. In Session One, `## shared` is the usual unknown-heading error. F6 and the F8 / when-value checks use the final flow order, so a step after the marker may say `when: details_x = ...` or an option `when: background = ...`.

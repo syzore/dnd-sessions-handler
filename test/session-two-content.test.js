@@ -125,6 +125,22 @@ test('shape: a context on a Session One-only step (choice, text) reads that step
   assert.equal(step(m, 'a', 'subclass').context.options.length, 2); // a multi target is allowed (F25)
 });
 
+test('context: "<id> | <question>" replaces the derived question; the text is trimmed; no "|" is unchanged', () => {
+  const c = load({ [A]: replace('context: element', 'context: element |   מה הכוח שלך?  ') });
+  assert.deepEqual(step(c, 'a', 'subclass').context, {
+    step: 'element',
+    question: 'מה הכוח שלך?',
+    options: [{ id: 'fire', label: 'אש' }, { id: 'cold', label: 'קור' }],
+  });
+  assert.equal(step(load({ [A]: replace('context: element', 'context:element|ש?') }), 'a', 'subclass').context.question, 'ש?');
+  assert.equal(step(load(), 'a', 'subclass').context.question, 'מה היסוד שלך?');
+});
+
+test('context: an empty question after "|" is an error with file and line; the target is still checked', () => {
+  fails({ [A]: replace('context: element', 'context: element |  ') }, { file: A, lineText: 'context: element |', message: 'nothing after "|"' });
+  fails({ [A]: replace('context: element', 'context: nowhere | שאלה?') }, { file: A, lineText: 'context: nowhere |', message: 'has no such earlier step' });
+});
+
 test('shape: a context on an earlier Session Two step is allowed', () => {
   const c = load({
     [A]: (t) => t.replace('context: element\n', '').replace('from: session-one\n\n## info', 'from: session-one\n\n## text: why\ncontext: subclass\nprompt: למה?\n\n## info'),
