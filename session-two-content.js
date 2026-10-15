@@ -28,7 +28,7 @@ export { ContentError };
 const FRONT = { ...FRONT_KEYS, background: 'background' }; // D3: "background:" is the DM override
 const STEP_KEYS = ['from', 'when', 'context', 'count', 'random']; // D4, D14
 const OPTION_KEYS = ['when']; // D14
-const EXT = { frontKeys: FRONT, frontRequired: ['id'], stepKeys: STEP_KEYS, optionKeys: OPTION_KEYS };
+const EXT = { frontKeys: FRONT, frontRequired: ['id'], stepKeys: STEP_KEYS, optionKeys: OPTION_KEYS, sharedMarker: true };
 const EXT_SHARED = { stepKeys: STEP_KEYS, optionKeys: OPTION_KEYS, shared: true };
 const EXT_INTRO = { stepKeys: [] }; // the intro is plain Session One grammar
 
@@ -108,7 +108,7 @@ function checkChoiceKeys(step, raw, at, out, fail, charId, env) {
   return { ...step, options };
 }
 
-// One character's flow: own steps, then shared steps. Each entry { step, at } (tidy step, line info).
+// One character's flow: own steps with the shared steps at the "## shared" marker (default: after them). Each entry { step, at } (tidy step, line info).
 function resolveFlow(charId, flow, s1Char, env) {
   const out = [];
   const ids = new Map(); // step id -> rel of the file that defined it
@@ -211,7 +211,9 @@ export function loadSessionTwo({ s1Dir, s2Dir }) {
 
     const s1Char = s1.characters[s1Index];
     const own = p.steps.map((s) => ({ step: tidyStep(s), at: { ...p.at[s.id], rel: p.rel } }));
-    const flow = [...own, ...shared.map((x) => ({ step: structuredClone(x.step), at: x.at }))];
+    const sharedFlow = shared.map((x) => ({ step: structuredClone(x.step), at: x.at }));
+    const cut = p.sharedAt ? p.sharedAt.index : own.length; // D13: "## shared" places the shared steps; none = at the end
+    const flow = [...own.slice(0, cut), ...sharedFlow, ...own.slice(cut)];
     const icon = front.icon ?? s1Char.icon;
     characters.push({
       order: Number(front.order ?? s1Index + 1),

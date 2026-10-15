@@ -105,6 +105,10 @@ multi: true
 count: 2
 ```
 
+תיבת הטקסט החופשי (`other: true`) לא נספרת ב-`n`: חובה לבחור בדיוק `n` אפשרויות, והטקסט החופשי הוא תוספת רשות.
+
+The free-text box (`other: true`) does not count toward `n`: exactly `n` picks are required, and free text is an optional extra.
+
 ### `random: true`
 
 רק בסשן שני, ורק בשלב בחירה יחיד. השלב מקבל כפתור "אקראי 🎲" שבוחר אחת מהאפשרויות הגלויות, והתשובה שנשמרת היא המזהה שנבחר. פלט: `random: true`. בכל מקום אחר זו טעות.
@@ -147,6 +151,22 @@ prompt: איפה זה היה, עם מי, ומה נשאר לך ממנו היום?
 רקע חדש בסשן ראשון או מונח `bg_*` חדש בלי שלב `details_<id>` מפיל את `npm test`. עד שמוסיפים שלב, השחקן יקבל את `details_other`.
 
 A new Session One background or `bg_*` term with no `details_<id>` step fails `npm test`. Until the step exists, the player gets `details_other`.
+
+### `## shared`: איפה השלבים המשותפים / where the shared steps go
+
+בקובץ דמות אפשר לכתוב שורה `## shared` (כותרת בלי סוג ובלי מזהה, בלי מפתחות ובלי טקסט), לכל היותר פעם אחת. השלבים המשותפים נכנסים בדיוק שם. בלי השורה הם באים אחרי כל שלבי הקובץ. כך `trait`, `ideal`, `bond`, `flaw` יכולים לבוא אחרי שלבי `details_*`, ושלב אחרי השורה יכול לכתוב `when: details_sage = academy` או `when: background = ...` על אפשרות. שורה שנייה בקובץ, או `## shared` בקובץ ב-`steps/`, היא טעות. בסשן ראשון זו כותרת לא מוכרת.
+
+A character file may hold one line `## shared` (a heading with no type or id, no keys, no text). The shared steps are inserted at that point; without it they come after all of the file's own steps. So `trait`, `ideal`, `bond`, `flaw` can follow the `details_*` steps, and a step after the line may use `when: details_sage = academy`, or an option `when: background = ...`. A second one in a file, or `## shared` in a `steps/` file, is an error. In Session One it is an unknown heading.
+
+```markdown
+## info: lore
+from: session-one
+
+## shared
+
+## choice: trait
+random: true
+```
 
 ## 🔒 סודות / Keep secrets out of shared steps
 

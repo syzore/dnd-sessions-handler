@@ -422,6 +422,50 @@ test('Session One keeps rejecting count: and random: (F10)', () => {
   assert.throws(() => loadContent(path.join(root, 'session-one')), /unknown key "random"/);
 });
 
+// ------------------------------------------------- "## shared" placement marker (D13, D14)
+
+const ids = (c, cid) => char(c, cid).steps.map((s) => s.id);
+const DETAIL_IDS = ['details_sage', 'details_scribe', 'details_noble', 'details_other'];
+
+test('## shared: without the marker the shared steps go at the end (today\'s order)', () => {
+  assert.deepEqual(ids(load({}, CUSTOM), 'a').slice(-5), ['trait', ...DETAIL_IDS]);
+});
+
+test('## shared: the shared steps are inserted at the marker, and a later step may use their answers', () => {
+  const c = load({ [CA]: (s) => replace('## choice: trait', '## shared\n\n## choice: trait')(s) + '\n## choice: after\nwhen: details_sage = academy\nprompt: אחרי?\n\n### א\nid: x\n\n### ב\nid: y\n' }, CUSTOM);
+  const all = ids(c, 'a');
+  assert.deepEqual(all.slice(all.indexOf('mystic_story') + 1), [...DETAIL_IDS, 'trait', 'after']);
+  assert.deepEqual(step(c, 'a', 'after').when, { step: 'details_sage', value: 'academy' });
+  assert.ok(!JSON.stringify(c).includes('sharedAt'));
+  // another character's file without a marker is unaffected
+  assert.deepEqual(ids(c, 'b').slice(-DETAIL_IDS.length), DETAIL_IDS);
+});
+
+test('## shared: an own step before the marker cannot name a step that comes after it (F6, final order)', () => {
+  fails({ [CA]: (s) => replace('## choice: trait', '## shared\n\n## choice: trait')(s).replace('## text: mystic_story\nwhen: background = mystic', '## text: mystic_story\nwhen: details_sage = academy') }, { from: CUSTOM, file: CA, lineText: 'when: details_sage = academy', message: '"details_sage" is not an earlier step' });
+});
+
+test('## shared: option when: on a step after the marker may name a background step before it', () => {
+  assert.ok(load({ [CA]: replace('## choice: trait', '## shared\n\n## choice: trait') }, CUSTOM));
+});
+
+test('## shared: twice in one character file is an error at the second one', () => {
+  fails({ [CA]: (s) => replace('## choice: trait', '## shared\n\n## choice: trait')(s) + '\n## shared\n' }, { from: CUSTOM, file: CA, lineText: '## shared', message: '"## shared" appears twice in this file (first at line 64)' });
+});
+
+test('## shared: in a shared step file is an error', () => {
+  fails({ [DETAILS]: (s) => s + '\n## shared\n' }, { file: DETAILS, lineText: '## shared', message: 'belongs in a character file, not in a shared step file' });
+});
+
+test('## shared: holds no keys and no text', () => {
+  fails({ [CA]: replace('## choice: trait', '## shared\nwhen: background = sage\n\n## choice: trait') }, { from: CUSTOM, file: CA, lineText: 'when: background = sage', message: 'a line of its own' });
+});
+
+test('## shared: Session One keeps the unknown-heading error', () => {
+  const S1A = 'session-one/characters/a.md';
+  fails({ [S1A]: replace('## choice: element', '## shared\n\n## choice: element') }, { file: S1A, lineText: '## shared', message: 'a step heading is "## <type>: <id>"' });
+});
+
 test('count: and random: are unknown keys in the intro and in lists', () => {
   fails({ 'session-two/intro.md': replace('title: סשן שני', 'title: סשן שני\ncount: 2') }, { file: 'session-two/intro.md', lineText: 'count: 2', message: 'unknown key "count"' });
   fails({ 'session-two/lists/pair.md': 'random: true\nprompt: זוג\n\n### אחד\nid: one\n' }, { file: 'session-two/lists/pair.md', lineText: 'random: true', message: 'unknown key "random"' });

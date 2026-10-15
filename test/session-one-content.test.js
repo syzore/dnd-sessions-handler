@@ -270,6 +270,17 @@ test('F27: a "link:" in a lists/ file is a default; the step\'s own wins', () =>
   assert.deepEqual(god({ ...list, 'characters/a.md': replace('use: gods\n', 'use: gods\nlink: https://example.org/own\n') }).link, { url: 'https://example.org/own' });
 });
 
+test('an option "when:" is an unknown key in Session One (it is not turned into description text)', () => {
+  const s = load();
+  const ch = s.characters[0].steps.find((x) => x.options);
+  const label = ch.options[0].label;
+  const file = 'characters/a.md';
+  const text = fs.readFileSync(path.join(BASIC, file), 'utf8').split('\n');
+  const at = text.findIndex((l) => l.startsWith('### ') && l.includes(label)) + 1;
+  fails({ [file]: (src) => src.split('\n').map((l, i) => (i + 1 === at ? `${l}\nwhen: background = sage` : l)).join('\n') },
+    `content/session-one/characters/a.md line ${at + 1}: unknown key "when" (allowed: id, subtitle, term)`);
+});
+
 // ---------------------------------------------------------------- real content (A3)
 
 test('the real content/session-one loads with no content error', () => {

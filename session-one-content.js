@@ -174,7 +174,8 @@ export function parseTermFile(text, rel, key, withSrc) {
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
 // terms: Map of id -> term, for option "term:" (D4).
 // ext (Session Two only; Session One passes none and keeps its grammar and errors):
-//   { frontKeys: { <key>: <field> }, frontRequired: [<field>], stepKeys: [<extra step keys>], optionKeys: [<extra option keys>], shared: bool }.
+//   { frontKeys: { <key>: <field> }, frontRequired: [<field>], stepKeys: [<extra step keys>], optionKeys: [<extra option keys>], shared: bool, sharedMarker: bool }.
+//   sharedMarker: a "## shared" line (at most once) marks where the shared steps go; returned as sharedAt = { line, index }.
 //   An extra step key (from, when, context, count, random) or option key (when) is parsed here and
 //   resolved by session-two-content.js. An option "when:" becomes option.when = { step, value } and
 //   option.whenLine = <line>; the caller deletes whenLine.
@@ -228,6 +229,8 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
   let item = null; // the lore bullet being filled
   let para = null; // the description paragraph being filled (array of lines)
   let stepLine = 0;
+  let sharedAt = null; // { line, index }: where "## shared" stands (index = steps before it)
+  let marker = false; // the lines right after "## shared", up to the next heading
 
   const endPara = () => {
     if (para && section && typeof section === 'object') section.paras.push(para.join(' '));
@@ -297,7 +300,19 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     const raw = lines[i];
     const l = raw.trim();
 
+    if (ext && /^## shared\s*$/.test(raw)) {
+      if (ext.shared) fail(n, '"## shared" marks where the shared steps go; it belongs in a character file, not in a shared step file');
+      if (!ext.sharedMarker) fail(n, 'a step heading is "## <type>: <id>"');
+      endStep();
+      if (sharedAt) fail(n, `"## shared" appears twice in this file (first at line ${sharedAt.line})`);
+      sharedAt = { line: n, index: steps.length };
+      step = null;
+      section = item = null;
+      marker = true;
+      continue;
+    }
     if (/^## /.test(raw)) {
+      marker = false;
       if (kind === 'list') fail(n, 'a list file holds keys and ### options only, no ## steps');
       endStep();
       noRef(n, raw);
@@ -312,6 +327,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     }
     if (/^#( |$)/.test(raw)) continue; // a page title, for the reader only
     if (!step) {
+      if (l && marker) fail(n, '"## shared" is a line of its own: it holds no keys and no text');
       if (l) fail(n, 'text before the first "## <type>: <id>" step heading');
       continue;
     }
@@ -412,6 +428,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     // option body: id:/subtitle:/term: lines first, then the description paragraph(s)
     const o = section;
     const m = !para && !o.paras.length && l.match(KEY_LINE);
+    if (m && m[1] === 'when' && !optionKeys.has('when')) fail(n, `unknown key "when" (allowed: ${[...optionKeys].join(', ')})`);
     if (m && optionKeys.has(m[1])) {
       if (m[1] !== 'subtitle') noRef(n, l);
       if (o[m[1]] !== undefined) fail(n, `"${m[1]}:" appears twice in this option`);
@@ -439,7 +456,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         if (!o.id) throw new ContentError(`${rel}: option "${o.label}" in step "${st.id}" needs an "id:" line (the label has no Latin letters)`);
       }
     }
-  return { front, frontLines, steps, at, lines, allowed };
+  return { front, frontLines, steps, at, lines, allowed, sharedAt };
 }
 
 // The term object a parsed term file entry becomes (shared by Session One and Session Two).
