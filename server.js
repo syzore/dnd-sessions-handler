@@ -661,7 +661,14 @@ async function s2Api(req, res, parts, url) {
       throw e;
     }
     const character = s?.sessionTwo?.players[url.searchParams.get('pid')]?.character;
-    return json(res, 200, contentFor(content, { isAdmin, character }));
+    const out = contentFor(content, { isAdmin, character });
+    // The context line names an overridden background by its bg_ term (D8); no step refers to that
+    // term when the override is not an option of the Session One step (Vilhelm's custom background).
+    for (const c of content.characters) {
+      const id = c.background && `bg_${c.background}`;
+      if (id && content.terms[id] && out.terms && !out.terms[id]) out.terms[id] = content.terms[id];
+    }
+    return json(res, 200, out);
   }
 
   // parts: ['api', 's2', code, 'me', pid]
