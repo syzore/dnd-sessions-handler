@@ -79,7 +79,7 @@ Per-option links below point to wikidot / Open5e because those pages are readabl
 - en: Giant Foundling
 - source: other (Bigby Presents: Glory of the Giants, WotC 2023)
 - description: גדלת בין ענקים או ליד חורבות שלהם, והגודל וההשפעה שלהם עיצבו אותך. אתה מרגיש בבית בין דברים ענקיים, ונושא בתוכך מסורות עתיקות של ענקים.
-- fit: הכי קרוב ללור של דק: קסילון, האימפריות של הענקים שנפלו, ורוח אדוני הענקים שמתעוררת בזעם שלו.
+- fit: הכי קרוב ללור של רזול: קסילון, האימפריות של הענקים שנפלו, ורוח אדוני הענקים שמתעוררת בזעם שלו.
 - link: https://dnd5e.wikidot.com/background:giant-foundling
 
 ### outlander
@@ -95,7 +95,7 @@ Per-option links below point to wikidot / Open5e because those pages are readabl
 - en: Soldier
 - source: 2014 PHB, 2024 PHB
 - description: שירתת בצבא, למדת משמעת, שרשרת פיקוד ומה זה קרב אמיתי. חיילים אחרים מזהים את הדרגה שלך, גם אם ברחת.
-- fit: ענקי הגבעות הם חיל הלם בשורה הראשונה של לגיונות הדרקון. דק הוא מגויס שברח (`how_joined: conscript`).
+- fit: ענקי הגבעות הם חיל הלם בשורה הראשונה של לגיונות הדרקון. רזול הוא מגויס שברח (`how_joined: conscript`).
 - link: https://dnd5e.wikidot.com/background:soldier
 
 ### gladiator
@@ -111,7 +111,7 @@ Per-option links below point to wikidot / Open5e because those pages are readabl
 - en: Sage
 - source: 2014 PHB, 2024 PHB
 - description: בילית שנים בלימוד: ספרים, מגילות ושאלות שאין עליהן תשובה. כשאתה לא יודע משהו, אתה יודע איפה לחפש.
-- fit: "ההפתעה של התא": כולם מצפים לזולל חסר מחשבה, ודק יודע לקרוא את הכתובות בחורבות קסילון.
+- fit: "ההפתעה של התא": כולם מצפים לזולל חסר מחשבה, ורזול יודע לקרוא את הכתובות בחורבות קסילון.
 - link: https://dnd5e.wikidot.com/background:sage
 
 ## tenni: (race not stated) כוהן

@@ -79,7 +79,7 @@ Glossary draft (tickets 02, 06, 08):
 - **A26. Minor terms are out of scope.** The draft's left-out terms (מחתרת הג'מבוקה, לוחם קדוש, צלבן, אלמנטליסטים, כישוף מולד) get no term, not even a name-only one, and are not marked. Ticket 06's name-only rule does not apply to them.
 - **A27. "Seven Cities" stays.** The term is `seven-cities` → `seven_cities`, "שבע הערים", `en: Seven Cities`, with the draft blurb as written, although canon lists eight cities. The draft's `uncertain:` comment about it stays as a comment.
 - **A28. The campaign content wins over canon.** Where the content departs from Midgard canon (goliaths, the giants of Cassilon, the inquisitors, the dragon roads (הסליל של הדרקון), the Law of Masks, the shattered holy orders), blurbs and bullets follow the content. Rules for the converter: a blurb sentence that contradicts the content changes to match it; a sentence that comments on canon vs campaign ("this is a campaign addition", "not in canon") is removed; canon facts that add detail without contradicting the content stay; the `uncertain:` comments that record the deviation stay. Concretely:
-  - `goliath`: remove the last sentence ("השבטים של דק ... הם תוספת של הקמפיין."). The rest matches `deq.md` line 16.
+  - `goliath`: remove the last sentence ("השבטים של רזול ... הם תוספת של הקמפיין."). The rest matches `deq.md` line 16.
   - `cassilon`: in the first sentence, replace "ממלכה קוסמופוליטית במערב" with "עיר אגדית של מלאכה ומסחר במערב" (`deq.md` line 17).
   - `holy-orders`: replace the second sentence ("בממלכת מגדר עדיין פועלים שניים: ...") with "רוב המסדרים של בני האדם והגמדים נופצו, ורק פלגים קטנים עדיין מסתתרים לאורך הגבולות, בממלכת מגדר ובנוריה נטאל." (`turator.md` line 24).
   - Proposed bullet "ממלכת מגדר": replace "עם עגלות מלחמה משוריינות ושני מסדרי אבירים קדושים" with "עם עגלות מלחמה משוריינות". The bullet is public, and Turator's lore says the orders were shattered.
@@ -267,7 +267,7 @@ subtitle: <fit>
 <description>
 ```
 
-`<name>` per file: deq "דק", bebby "בבי", turator "טוראטור", tenni "טני", vilhelm "וילהלם" (so "לדק", "לבבי", "לטוראטור", "לטני", "לוילהלם").
+`<name>` per file: deq "רזול", bebby "בבי", turator "טוראטור", tenni "טני", vilhelm "וילהלם" (so "לרזול", "לבבי", "לטוראטור", "לטני", "לוילהלם").
 
 **Placement** (A5): directly after `## info: lore`.
 

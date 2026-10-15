@@ -211,7 +211,7 @@ Left out as too generic for a popup: מחתרת הג'מבוקה, לוחם קדו
 - he: גוליית
 - en: Goliath
 - aliases_he: none
-- blurb: גוליית הם עם ענק-למחצה מספרי D&D: גבוהים, חזקים, עם עור דמוי אבן ודם של ענקים. במידגארד אין עם בשם הזה, ולכן כאן קוראים להם בני-ענק או חצאי-אוגרים. השבטים של דק (שובר-העצם, מנודי קא'נש, רוכבי-האבן) הם תוספת של הקמפיין.
+- blurb: גוליית הם עם ענק-למחצה מספרי D&D: גבוהים, חזקים, עם עור דמוי אבן ודם של ענקים. במידגארד אין עם בשם הזה, ולכן כאן קוראים להם בני-ענק או חצאי-אוגרים. השבטים של רזול (שובר-העצם, מנודי קא'נש, רוכבי-האבן) הם תוספת של הקמפיין.
 - image: https://static.wikia.nocookie.net/forgottenrealms/images/1/15/United_colors_of_goliaths_5point5e.jpg/revision/latest?cb=20241016184327 [fandom: no-referrer]
 - links: Goliath (Forgotten Realms Wiki) — https://forgottenrealms.fandom.com/wiki/Goliath
 - sources: FRW Goliath; deq.md ("אין כאן גוליית")
@@ -233,7 +233,7 @@ Left out as too generic for a popup: מחתרת הג'מבוקה, לוחם קדו
 - he: חצאי-אוגרים
 - en: Half-ogre
 - aliases_he: none
-- blurb: חצאי-אוגרים הם צאצאים של אוגרים ובני אדם: ענקיים, חזקים, ובעיני רבים פראיים. במידגארד העיר המהארוטית קא'נש מפורסמת באוגרים שלה, שמגויסים כחיל הלם. זה השם השני שבו מכנים את דק.
+- blurb: חצאי-אוגרים הם צאצאים של אוגרים ובני אדם: ענקיים, חזקים, ובעיני רבים פראיים. במידגארד העיר המהארוטית קא'נש מפורסמת באוגרים שלה, שמגויסים כחיל הלם. זה השם השני שבו מכנים את רזול.
 - image: https://static.wikia.nocookie.net/forgottenrealms/images/6/60/Half-ogre-5e.jpg/revision/latest?cb=20171011024251 [fandom: no-referrer]
 - links: Half-ogre (Forgotten Realms Wiki) — https://forgottenrealms.fandom.com/wiki/Half-ogre
 - sources: FRW Half-ogre; KP-dragoncoil ("Kaa'nesh, home of the tusked ogrekin"); WB-writeup (Kaa'Nesh ogres as shock troops)
@@ -256,7 +256,7 @@ Left out as too generic for a popup: מחתרת הג'מבוקה, לוחם קדו
 - he: ענקי הגבעות
 - en: Hill giant
 - aliases_he: none
-- blurb: ענקי הגבעות הם הענקים הנמוכים והגסים ביותר: רעבים תמיד, נואשים לאוכל ולאדמה. משפחות ענקי הגבעות של דק מתייחסות לקסילון האגדית. האימפריה צדה אותם, משעבדת אותם ושולחת אותם בשורה הראשונה של הלגיונות.
+- blurb: ענקי הגבעות הם הענקים הנמוכים והגסים ביותר: רעבים תמיד, נואשים לאוכל ולאדמה. משפחות ענקי הגבעות של רזול מתייחסות לקסילון האגדית. האימפריה צדה אותם, משעבדת אותם ושולחת אותם בשורה הראשונה של הלגיונות.
 - image: https://static.wikia.nocookie.net/forgottenrealms/images/0/0f/HillGiant-5e.jpg/revision/latest?cb=20141112170803 [fandom: no-referrer]
 - links: Hill giant (Forgotten Realms Wiki) — https://forgottenrealms.fandom.com/wiki/Hill_giant
 - sources: FRW Hill giant; deq.md
