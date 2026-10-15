@@ -2,6 +2,7 @@ import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
 import { setTerms, allTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
 import { initTermPopup, termInfoButton, stepLinkHtml, CATEGORY_LABELS } from '/shared/term-popup.js';
+import { withInfo, loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -14,12 +15,6 @@ const base = (code) => `/session-one/${code}`;
 
 // Content text goes through richText (HTML) or plainText (attributes, labels):
 // raw [[term]] markup never reaches the screen. Each screen then gets its first-mention English.
-// A choice card whose option says `term:` gets an info button beside it, not inside the
-// option <button> (D4). Player flow and DM compendium share the layout.
-function withInfo(o, card) {
-  const info = o.term ? termInfoButton(o.term) : '';
-  return info ? `<div class="opt-wrap">${card}${info}</div>` : card;
-}
 
 function screen(html) {
   $app.innerHTML = html;
@@ -173,29 +168,13 @@ function save(extra = {}) {
 
 const shownName = () => (state.choice === 'rename' && state.newName) || character(state.character)?.name || '';
 
-function topbar(i, n, back = true) {
-  return `
-    <header class="topbar">
-      ${back ? `<button class="icon-btn" id="back" aria-label="חזרה">${icon('chevR')}</button>` : ''}
-      ${n ? `<div class="progress"><div style="width:${Math.round(((i + 1) / n) * 100)}%"></div></div><div class="count">${i + 1}/${n}</div>` : ''}
-    </header>`;
-}
-
 async function renderPick() {
   await load(state.code).catch(() => {}); // fresh "taken" list
   screen(`
     <main class="wrap q">
       <div class="kicker">${esc(state.title)} · סשן ראשון</div>
       <h1 class="q-title">איזו דמות תשחק/י?</h1>
-      <div class="grid one">${CHARACTERS.map((c) => {
-        const by = state.taken[c.id];
-        return `
-        <button class="opt ${state.character === c.id ? 'sel' : ''}" data-id="${c.id}" ${by != null ? 'disabled' : ''}>
-          <span class="opt-ic">${icon(c.icon || 'd20')}</span>
-          <span class="opt-text"><span class="opt-label">${esc(c.name)}</span><span class="opt-sub">${esc(c.cls)}${by != null ? ` · נלקחה${by ? ` (${esc(by)})` : ''}` : ''}</span></span>
-          <span class="opt-check">${icon('check')}</span>
-        </button>`;
-      }).join('')}</div>
+      ${pickListHtml(CHARACTERS, { taken: state.taken, selected: state.character })}
       <p class="err" id="err"></p>
     </main>`);
   $app.querySelectorAll('.opt').forEach((b) => {
@@ -254,19 +233,6 @@ function renderChoice() {
 
 const canGo = () => !!state.choice && (state.choice !== 'rename' || !!state.newName);
 
-// An info step's known/secret sections (player flow and DM compendium).
-// `pen` (lore view, edit mode only) turns an item into its pencil button, or '' for none.
-const loreSection = (items, cls, heading, pen) =>
-  items?.length
-    ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => {
-        const pencil = pen ? pen(it) : '';
-        return `
-        <div class="lore-item${pencil ? ' ed-host' : ''}">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}<p>${richText(it.text)}</p>${pencil}</div>`;
-      }).join('')}</section>`
-    : '';
-const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע', pen) =>
-  `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים', pen)}${loreSection(st.secret, 'lore-secret', secretHeading, pen)}</div>`;
-
 // Shared world lore, shown to every player after the keep/rename/switch choice.
 function renderCommon() {
   const c = character(state.character);
@@ -297,99 +263,13 @@ function renderStep(i) {
     return renderEnd();
   }
   const st = steps[i];
-  const cur = state.answers[st.id];
-  const otherKey = `${st.id}_other`;
-  const isChoice = st.type === 'choice';
-  const cards = isChoice && st.options.some((o) => o.description);
-  const withOther = isChoice && st.other !== false;
-  const picked = (id) => (Array.isArray(cur) ? cur.includes(id) : cur === id);
-  const body =
-    st.type === 'info'
-      ? loreHtml(st)
-      : st.type === 'choice'
-      ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => withInfo(o, `
-          <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}">
-            ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
-            <span class="opt-text">
-              <span class="opt-label">${optionLabel(o)}</span>
-              ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
-              ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
-            </span>
-            <span class="opt-check">${icon('check')}</span>
-          </button>`)).join('')}</div>${withOther ? `
-        <label class="other-box"><span>משהו אחר / לכתוב בעצמי</span>
-          <textarea class="big-text" id="other" rows="3" maxlength="1000">${esc(state.answers[otherKey] || '')}</textarea></label>` : ''}`
-      : `<textarea class="big-text" id="ans" rows="5" maxlength="2000">${esc(cur)}</textarea>`;
-  const last = i === steps.length - 1;
-  screen(`
-    ${topbar(i, steps.length)}
-    <main class="wrap q">
-      <div class="kicker">${esc(shownName())} · ${esc(c.cls)}</div>
-      <h1 class="q-title">${richText(st.title || st.prompt || '')}</h1>
-      ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
-      ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
-      ${body}${stepLinkHtml(st.link)}
-      <div class="footer ${st.optional ? 'stack' : ''}">
-        <button class="cta" id="next">${icon(last ? 'flag' : 'chevL')}<span>${last ? 'סיום' : 'המשך'}</span></button>
-        ${st.optional ? `<button class="cta ghost" id="skip"><span>דלג</span></button>` : ''}
-      </div>
-    </main>`);
+  screen(stepScreenHtml({ st, i, n: steps.length, kicker: `${shownName()} · ${c.cls}`, answers: state.answers }));
   document.getElementById('back').onclick = () => (i === 0 ? renderCommon() : renderStep(i - 1));
-  const next = document.getElementById('next');
-  const answered = () => {
-    const v = state.answers[st.id];
-    return (Array.isArray(v) ? v.length > 0 : !!v) || !!state.answers[otherKey]?.trim();
-  };
-  const textEmpty = () => st.type === 'text' && !String(state.answers[st.id] || '').trim();
-  const refresh = () => (next.disabled = !st.optional && (isChoice ? !answered() : textEmpty()));
-  refresh();
-  next.onclick = () => {
+  const go = () => {
     save().catch(() => {});
     renderStep(i + 1);
   };
-  if (st.optional) {
-    document.getElementById('skip').onclick = () => {
-      delete state.answers[st.id];
-      delete state.answers[otherKey];
-      save().catch(() => {});
-      renderStep(i + 1);
-    };
-  }
-  if (isChoice) {
-    $app.querySelectorAll('.opt').forEach((b) => {
-      b.onclick = () => {
-        const id = b.dataset.id;
-        if (st.multi) {
-          const prev = Array.isArray(state.answers[st.id]) ? state.answers[st.id] : state.answers[st.id] ? [state.answers[st.id]] : [];
-          const nextPicks = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-          if (nextPicks.length) state.answers[st.id] = nextPicks;
-          else delete state.answers[st.id];
-          b.classList.toggle('sel', nextPicks.includes(id));
-          b.setAttribute('aria-pressed', nextPicks.includes(id));
-        } else {
-          state.answers[st.id] = id;
-          $app.querySelectorAll('.opt').forEach((x) => {
-            x.classList.toggle('sel', x === b);
-            x.setAttribute('aria-pressed', x === b);
-          });
-        }
-        refresh();
-      };
-    });
-    const other = document.getElementById('other');
-    if (other) {
-      other.oninput = (e) => {
-        if (e.target.value.trim()) state.answers[otherKey] = e.target.value;
-        else delete state.answers[otherKey];
-        refresh();
-      };
-    }
-  } else if (st.type === 'text') {
-    document.getElementById('ans').oninput = (e) => {
-      state.answers[st.id] = e.target.value;
-      refresh();
-    };
-  }
+  wireStep($app, { st, answers: state.answers, onNext: go, onSkip: go });
 }
 
 function renderEnd() {
