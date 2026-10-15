@@ -578,3 +578,25 @@ test('real content: each character\'s subclass step has exactly its four 2024 PH
     assert.equal(char(c, id).steps[1].carry, true);
   }
 });
+
+test('real content: characteristics steps follow every details step, are random, and have 6-8 options (D13)', () => {
+  const c = loadSessionTwo({ s1Dir: REAL_S1, s2Dir: REAL_S2 });
+  const order = ['trait', 'ideal', 'bond', 'flaw'];
+  const withTrait = c.characters.filter((ch) => ch.steps.some((s) => s.id === 'trait'));
+  assert.ok(withTrait.length >= 4, 'deq, tenni, bebby and vilhelm have characteristics steps');
+  for (const ch of withTrait) {
+    const ids = ch.steps.map((s) => s.id);
+    const idx = order.map((id) => ids.indexOf(id));
+    assert.ok(idx.every((i) => i >= 0), `${ch.id}: has trait, ideal, bond and flaw`);
+    assert.deepEqual([...idx].sort((a, b) => a - b), idx, `${ch.id}: order trait < ideal < bond < flaw`);
+    ids.forEach((id, i) => {
+      if (/^(details_|msc_)/.test(id)) assert.ok(i < idx[0], `${ch.id}: ${id} comes before trait`);
+    });
+    for (const id of order) {
+      const s = ch.steps[ids.indexOf(id)];
+      assert.equal(s.type, 'choice', `${ch.id}.${id}`);
+      assert.equal(s.random, true, `${ch.id}.${id} has random: true`);
+      assert.ok(s.options.length >= 6 && s.options.length <= 8, `${ch.id}.${id} has ${s.options.length} options`);
+    }
+  }
+});
