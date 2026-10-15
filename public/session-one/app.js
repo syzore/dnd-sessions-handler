@@ -343,6 +343,7 @@ async function renderDm(code) {
       </section>
       <div class="footer stack">
         <a class="cta ghost" href="${base(code)}/dm/lore?key=${encodeURIComponent(key)}">${icon('eye')}<span>כל הלור והבחירות</span></a>
+        <a class="cta ghost" href="/session-two/${esc(code)}/dm?key=${encodeURIComponent(key)}">${icon('sword')}<span>לסשן השני</span></a>
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button>
       </div>
     </main>`);

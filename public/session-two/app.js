@@ -2,11 +2,11 @@
 // The flow rules (effective answer, visible steps and options, context line) are pure and live in
 // /shared/session-two-flow.js; the screens come from the shared step screen. The DM view is ticket 05.
 import { icon } from '/shared/icons.js';
-import { esc, api, playerId, rememberAdminKey, copyButton } from '/shared/lib.js';
+import { esc, api, playerId, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
 import { setTerms, termOf, richText, plainText, addEnglishAll } from '/shared/terms.js';
 import { initTermPopup } from '/shared/term-popup.js';
 import { loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
-import { visibleSteps, visibleOptions, screenAnswers, commitScreenAnswers, contextLine } from '/shared/session-two-flow.js';
+import { visibleSteps, visibleOptions, screenAnswers, commitScreenAnswers, contextLine, dmRows } from '/shared/session-two-flow.js';
 
 let CHARACTERS = [];
 let INTRO = null;
@@ -21,8 +21,9 @@ function screen(html) {
   window.scrollTo(0, 0);
 }
 
-async function loadContent(code) {
+async function loadContent(code, key = null) {
   const q = new URLSearchParams({ code, pid: playerId() });
+  if (key) q.set('key', key);
   let terms;
   ({ commonLore: INTRO, characters: CHARACTERS, terms } = await api('GET', `/api/s2/content?${q}`));
   setTerms(terms);
@@ -45,14 +46,14 @@ async function route() {
   const parts = location.pathname.split('/').filter(Boolean);
   if (parts.length === 1) return renderCreate();
   const code = parts[1].toUpperCase();
-  if (parts[2] === 'dm') return lockScreen(); // the DM view is ticket 05
+  const dm = parts[2] === 'dm';
   screen('<main class="wrap center"><div class="spinner"></div></main>');
   try {
-    await loadContent(code);
+    await loadContent(code, dm ? adminKey(code) : null);
   } catch (e) {
     return renderContentError(e);
   }
-  return start(code);
+  return dm ? renderDm(code) : start(code);
 }
 
 // ---------------------------------------------------------------- create
@@ -112,6 +113,71 @@ function renderNotFound() {
       <p class="lead">כדאי לבדוק את הקישור.</p>
       <a class="cta" href="/session-two">${icon('sword')}<span>ליצור קבוצה חדשה</span></a>
     </main>`);
+}
+
+// ---------------------------------------------------------------- DM view (D9)
+async function renderDm(code) {
+  const key = adminKey(code);
+  let data;
+  try {
+    data = await api('GET', `/api/s2/${code}${key ? `?key=${encodeURIComponent(key)}` : ''}`);
+  } catch {
+    return renderNotFound();
+  }
+  if (!data.isAdmin) return lockScreen();
+  const rows = (data.players || [])
+    .map((p) => {
+      const c = character(p.character);
+      const { rows: shown, extras } = c
+        ? dmRows(c, p.carried?.answers || {}, p.answers || {}, { termName: (id) => termOf(id)?.he, plain: plainText })
+        : { rows: [], extras: Object.entries(p.answers || {}) };
+      const name = c ? `${p.carried?.newName || c.name} (${c.cls})` : 'עוד לא בחר/ה';
+      const line = ([q, a, note = '']) => `<div><dt>${esc(q)}</dt><dd>${esc(Array.isArray(a) ? a.join(', ') : a) || '—'}${note ? ` <span class="muted">${esc(note)}</span>` : ''}</dd></div>`;
+      return `
+        <details class="card dm-player" open>
+          <summary>${esc(name)} ${c && !p.done ? '<span class="muted">(באמצע)</span>' : ''}</summary>
+          <dl class="dm-dl">
+            ${shown.map((r) => line([r.q, r.a, r.note])).join('')}
+            ${extras.map(([k, v]) => line([k, v])).join('')}
+          </dl>
+          <button class="cta ghost danger dm-del" data-pid="${esc(p.id)}">מחיקה</button>
+        </details>`;
+    })
+    .join('');
+  screen(`
+    <main class="wrap results">
+      <div class="kicker">${esc(data.title)}</div>
+      <h1 class="q-title">סשן שני: בניית הדמות</h1>
+      <section class="dm">
+        <h2>${icon('eye')} רק ל-DM</h2>
+        ${rows || '<p class="muted">עוד אין שחקנים</p>'}
+      </section>
+      <div class="footer stack">
+        <button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button>
+      </div>
+    </main>`);
+  copyButton('share', `${location.origin}${base(code)}`);
+  // Delete: first tap arms ("בטוח?"), second tap deletes; disarms after 4s or on a tap elsewhere.
+  let armed = null;
+  const disarm = () => {
+    if (!armed) return;
+    armed.btn.textContent = 'מחיקה';
+    clearTimeout(armed.timer);
+    armed = null;
+  };
+  document.querySelectorAll('.dm-del').forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      if (armed?.btn === btn) {
+        await api('DELETE', `/api/s2/${code}/players/${encodeURIComponent(btn.dataset.pid)}?key=${encodeURIComponent(key)}`);
+        return renderDm(code);
+      }
+      disarm();
+      btn.textContent = 'בטוח?';
+      armed = { btn, timer: setTimeout(disarm, 4000) };
+    };
+  });
+  document.addEventListener('click', disarm, { once: true });
 }
 
 // ---------------------------------------------------------------- player flow
