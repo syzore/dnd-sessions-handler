@@ -214,13 +214,17 @@ async function start(code) {
 // Saves go out one at a time, in call order, each with the state as it was when asked: two quick
 // saves (the last step, then the end) can never land out of order and leave done:false.
 let saving = Promise.resolve();
-function save() {
-  const { code, character: c, done } = state;
-  const body = JSON.stringify({ character: c, answers: state.answers, done });
+// The character pick goes through the same chain, so an earlier save cannot land after it.
+function queueSave(code, payload) {
+  const body = JSON.stringify(payload);
   const run = () => api('PUT', `/api/s2/${code}/me/${playerId()}`, JSON.parse(body));
   const sent = saving.then(run);
-  saving = sent.catch(() => {});
+  saving = sent.catch(() => {}); // the caller still gets the rejection (e.g. 409)
   return sent;
+}
+function save() {
+  const { code, character: c, done } = state;
+  return queueSave(code, { character: c, answers: state.answers, done });
 }
 
 // The character's name: a Session One rename carries (A5).
@@ -245,7 +249,7 @@ async function renderPick(message = '') {
       const changed = b.dataset.id !== state.character;
       const next = changed ? { answers: {}, done: false } : { answers: state.answers, done: state.done };
       try {
-        await api('PUT', `/api/s2/${state.code}/me/${playerId()}`, { character: b.dataset.id, ...next });
+        await queueSave(state.code, { character: b.dataset.id, ...next });
       } catch (e) {
         return renderPick(e.message);
       }
@@ -304,7 +308,8 @@ function renderStep(i) {
   document.getElementById('back').onclick = () => (i === 0 ? renderIntro() : renderStep(i - 1));
   const go = () => {
     commitScreenAnswers(st, before, view, state.answers);
-    if (i + 1 < steps.length) save().catch(() => {}); // the last step is saved once, with done, by the end screen
+    // Recomputed after the commit: this answer may reveal more steps (a `when:` step).
+    if (i + 1 < visibleSteps(c, carriedAnswers(), state.answers).length) save().catch(() => {}); // the last step is saved once, with done, by the end screen
     renderStep(i + 1);
   };
   wireStep($app, { st, answers: view, onNext: go, onSkip: go });
