@@ -15,7 +15,7 @@ const STEP_TYPES = ['info', 'choice', 'text'];
 const BOOL = new Set(['multi', 'optional', 'other']);
 const STEP_KEYS = new Set(['title', 'prompt', 'hint', 'multi', 'optional', 'other', 'use', 'link']);
 const OPTION_KEYS = new Set(['id', 'subtitle', 'term']);
-const FRONT_KEYS = { id: 'id', name: 'name', class: 'cls', icon: 'icon', order: 'order' };
+export const FRONT_KEYS = { id: 'id', name: 'name', class: 'cls', icon: 'icon', order: 'order' };
 
 const KEY_LINE = /^([a-z_]+):\s*(.*)$/;
 export const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
@@ -60,7 +60,7 @@ export function parseLink(value, fail) {
 
 // Check every [[...]] term reference in a file, line by line (comments already blanked).
 // allowed: the line numbers whose text may hold references. terms: Map of id -> term.
-function checkRefs(lines, rel, allowed, terms) {
+export function checkRefs(lines, rel, allowed, terms) {
   lines.forEach((line, i) => {
     const n = i + 1;
     if (!line.includes('[[')) return;
@@ -85,7 +85,7 @@ function checkRefs(lines, rel, allowed, terms) {
 
 // Parse one terms/*.md file: "### <Hebrew name>", key lines, a blank line, blurb paragraphs.
 // Returns { terms: [{ ...term, line }], allowed: Set of blurb line numbers }.
-function parseTermFile(text, rel, key, withSrc) {
+export function parseTermFile(text, rel, key, withSrc) {
   const lines = linesOf(text);
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
@@ -173,7 +173,11 @@ function parseTermFile(text, rel, key, withSrc) {
 // Parse one md file. kind: 'character' | 'world' | 'list'.
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
 // terms: Map of id -> term, for option "term:" (D4).
-function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc } = {}) {
+// ext (Session Two only; Session One passes none and keeps its grammar and errors):
+//   { frontKeys: { <key>: <field> }, frontRequired: [<field>], stepKeys: [<extra step keys>], shared: bool }.
+//   An extra step key "from", "when" or "context" is parsed here and resolved by session-two-content.js.
+// Returns { front, frontLines, steps, at, lines, allowed }; at[stepId] = { heading, <extra key>: line }.
+export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext } = {}) {
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
   };
@@ -182,14 +186,19 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
   const lines = linesOf(text);
   const allowed = new Set(); // lines whose text may hold [[term]] references
 
+  const frontKeys = ext?.frontKeys ?? FRONT_KEYS;
+  const frontRequired = ext?.frontRequired ?? ['id', 'name', 'cls'];
+  const stepKeys = ext ? new Set([...STEP_KEYS, ...ext.stepKeys]) : STEP_KEYS;
   const front = {};
+  const frontLines = {};
+  const at = {};
   const steps = [];
   let i = 0;
 
   // Front matter: --- key: value lines ---
   if (kind === 'character') {
     while (i < lines.length && !lines[i].trim()) i++;
-    if (lines[i]?.trim() !== '---') fail(i + 1, 'a character file starts with a --- front-matter block (id, name, class, icon, order)');
+    if (lines[i]?.trim() !== '---') fail(i + 1, 'a character file starts with a --- front-matter block (' + Object.keys(frontKeys).join(', ') + ')');
     for (i++; ; i++) {
       if (i >= lines.length) fail(i, 'front matter is not closed with ---');
       const l = lines[i].trim();
@@ -197,11 +206,12 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       if (!l) continue;
       noRef(i + 1, l);
       const m = l.match(KEY_LINE);
-      if (!m || !FRONT_KEYS[m[1]]) fail(i + 1, `unknown front-matter line "${l}" (allowed: ${Object.keys(FRONT_KEYS).join(', ')})`);
-      front[FRONT_KEYS[m[1]]] = m[2].trim();
+      if (!m || !frontKeys[m[1]]) fail(i + 1, `unknown front-matter line "${l}" (allowed: ${Object.keys(frontKeys).join(', ')})`);
+      front[frontKeys[m[1]]] = m[2].trim();
+      frontLines[frontKeys[m[1]]] = i + 1;
     }
     i++;
-    for (const k of ['id', 'name', 'cls']) if (!front[k]) fail(1, `front matter needs "${k === 'cls' ? 'class' : k}:"`);
+    for (const k of frontRequired) if (!front[k]) fail(1, `front matter needs "${k === 'cls' ? 'class' : k}:"`);
   }
 
   let step = null; // the step being filled
@@ -218,6 +228,15 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
     endPara();
     if (!step) return;
     const n = stepLine;
+    if (step.from) {
+      // "from: session-one": the whole step comes from Session One, so nothing else may be written here.
+      const extra = Object.keys(step).filter((k) => !['id', 'type', 'from'].includes(k));
+      if (extra.length) fail(n, `a step with "from:" holds no other key and no ### sections (found: ${extra.join(', ')})`);
+      if (steps.some((s) => s.id === step.id)) fail(n, `step id "${step.id}" is used twice in this file`);
+      steps.push(step);
+      step = null;
+      return;
+    }
     for (const o of step.options || []) {
       if (o.paras.length) o.description = o.paras.join('\n\n');
       delete o.paras;
@@ -277,6 +296,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       if (!m || !STEP_TYPES.includes(m[1]))
         fail(n, `a step heading is "## <type>: <id>", type one of ${STEP_TYPES.join(', ')}, id Latin letters, digits, _`);
       step = { id: m[2], type: m[1] };
+      at[m[2]] = { heading: n };
       stepLine = n;
       section = item = null;
       continue;
@@ -292,6 +312,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       item = null;
       const h = raw.slice(4).trim();
       if (step.type === 'text') fail(n, 'a text step has no ### sections');
+      if (ext?.shared && step.type === 'info') fail(n, 'a shared step is a choice or text step; it has no ### known / ### secret');
       if (step.type === 'info') {
         if (h !== 'known' && h !== 'secret') fail(n, 'an info step\'s sections are "### known" and "### secret"');
         if (step[h]) fail(n, `"### ${h}" appears twice in this step`);
@@ -327,8 +348,8 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
     // step-level key lines (before any ### section)
     if (section === null) {
       const m = l.match(KEY_LINE);
-      if (!m) fail(n, `expected a "key: value" line (${[...STEP_KEYS].join(', ')}) or a ### section`);
-      if (!STEP_KEYS.has(m[1])) fail(n, `unknown key "${m[1]}" (allowed: ${[...STEP_KEYS].join(', ')})`);
+      if (!m) fail(n, `expected a "key: value" line (${[...stepKeys].join(', ')}) or a ### section`);
+      if (!stepKeys.has(m[1])) fail(n, `unknown key "${m[1]}" (allowed: ${[...stepKeys].join(', ')})`);
       if (!REF_STEP_KEYS.has(m[1])) noRef(n, l);
       let v = m[2].trim();
       if (BOOL.has(m[1])) {
@@ -339,6 +360,16 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       if (m[1] === 'link') {
         if (step.type === 'info') fail(n, '"link:" works on choice and text steps');
         v = parseLink(v, (msg) => fail(n, msg));
+      }
+      if (ext?.stepKeys.includes(m[1])) {
+        at[step.id][m[1]] = n;
+        if (m[1] === 'from' && v !== 'session-one') fail(n, `"from: ${v}": the only source is "session-one"`);
+        if (m[1] === 'context' && !REF_ID.test(v)) fail(n, `"context: ${v}": a step id is Latin lowercase letters, digits and _`);
+        if (m[1] === 'when') {
+          const w = v.match(/^([a-z0-9_]+)\s*=\s*([a-z0-9_]+)$/);
+          if (!w) fail(n, `"when: ${v}" is "when: <step id> = <option id>" or "when: <step id> = _else"`);
+          v = { step: w[1], value: w[2] };
+        }
       }
       if (REF_STEP_KEYS.has(m[1])) allowed.add(n);
       if (withSrc && REF_STEP_KEYS.has(m[1])) (step.src ||= {})[m[1]] = { file: key, line: n };
@@ -398,13 +429,16 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
         if (!o.id) throw new ContentError(`${rel}: option "${o.label}" in step "${st.id}" needs an "id:" line (the label has no Latin letters)`);
       }
     }
-  return { front, steps, lines, allowed };
+  return { front, frontLines, steps, at, lines, allowed };
 }
 
-const readDisk = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
-const mdFilesDisk = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
+// The term object a parsed term file entry becomes (shared by Session One and Session Two).
+export const termOf = ({ id, he, en, category, aliases, images, links, blurb, src }) =>
+  ({ id, he, en, category, ...(aliases && { aliases }), images, links, ...(blurb && { blurb }), ...(src && { src }) });
+export const readDisk = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
+export const mdFilesDisk = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
 // Reorder so id/type come first in each step and each option (purely cosmetic in the JSON).
-const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(rest.options && { options: rest.options.map(({ id, ...o }) => ({ id, ...o })) }) });
+export const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(rest.options && { options: rest.options.map(({ id, ...o }) => ({ id, ...o })) }) });
 
 // Read and parse the whole content folder. Throws ContentError.
 // override: { file: 'terms/x.md', text } parses with that file's text replaced (or added),
@@ -430,8 +464,9 @@ export function loadContent(dir, { override, src } = {}) {
   for (const f of mdFiles(path.join(dir, 'terms'))) {
     const rel = relOf(path.join('terms', f));
     const parsed = parseTermFile(read(dir, path.join('terms', f)), rel, `terms/${f}`, src);
-    for (const { line, id, he, en, category, aliases, images, links, blurb, src: tsrc } of parsed.terms) {
-      const t = { id, he, en, category, ...(aliases && { aliases }), images, links, ...(blurb && { blurb }), ...(tsrc && { src: tsrc }) };
+    for (const parsedTerm of parsed.terms) {
+      const { line } = parsedTerm;
+      const t = termOf(parsedTerm);
       if (terms.has(t.id)) throw new ContentError(`${rel} line ${line}: term id "${t.id}" is used by another term (${terms.get(t.id).where})`);
       terms.set(t.id, { ...t, where: `${rel} line ${line}` });
     }

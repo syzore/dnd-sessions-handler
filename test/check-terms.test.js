@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkAll } from '../scripts/check-terms.js';
+import { checkAll, collectUrls } from '../scripts/check-terms.js';
 
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'session-one', 'urls');
 
@@ -31,5 +31,28 @@ test('check-terms: reports a dead term image, term link and step link with file 
   } finally {
     server.close();
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('check-terms: Session Two content is scanned (term links in terms/, step links in characters/)', () => {
+  const urls = collectUrls(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'content', 'session-two'));
+  assert.ok(urls.some((u) => u.kind === 'term link' && u.file === 'terms/subclasses.md' && u.url.startsWith('https://dnd2024.wikidot.com/')));
+  assert.ok(urls.some((u) => u.kind === 'step link' && u.file === 'characters/deq.md' && u.url === 'https://dnd2024.wikidot.com/barbarian:main'));
+});
+
+test('check-terms: several folders are checked together, each file prefixed with its folder name', async () => {
+  const server = http.createServer((req, res) => { res.statusCode = req.url === '/ok' ? 200 : 404; res.end(); });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'check-terms-'));
+  try {
+    for (const [d, p] of [['one', 'ok'], ['two', 'dead']]) {
+      fs.mkdirSync(path.join(root, d));
+      fs.writeFileSync(path.join(root, d, 'steps.md'), `## text: x\nlink: t — http://127.0.0.1:${server.address().port}/${p}\n`);
+    }
+    const res = await checkAll([path.join(root, 'one'), path.join(root, 'two')], { timeoutMs: 2000 });
+    assert.deepEqual(res.map((r) => `${r.file}:${r.line} ${r.ok}`), ['one/steps.md:2 true', 'two/steps.md:2 false']);
+  } finally {
+    server.close();
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

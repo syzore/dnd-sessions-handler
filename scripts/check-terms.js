@@ -1,5 +1,5 @@
 // Offline URL checker: `npm run check-terms`. Run before a deploy; never part of a page request.
-// Requests every term image:/link: URL and every step link: URL in content/session-one.
+// Requests every term image:/link: URL and every step link: URL in content/session-one and content/session-two.
 // Exit 1 if any URL fails. 403/429 that a browser-User-Agent GET also returns = "blocked", reported, not failing.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,8 +58,11 @@ export async function checkUrl(url, { timeoutMs = 10000 } = {}) {
   return { ok: false, blocked: false, ...r };
 }
 
+// dir: one content folder, or an array of them (then each file is prefixed with its folder name).
 export async function checkAll(dir, { concurrency = 6, timeoutMs } = {}) {
-  const items = collectUrls(dir);
+  const items = Array.isArray(dir)
+    ? dir.flatMap((d) => collectUrls(d).map((u) => ({ ...u, file: `${path.basename(d)}/${u.file}` })))
+    : collectUrls(dir);
   const cache = new Map(); // one request per distinct URL
   const results = new Array(items.length);
   let next = 0;
@@ -78,7 +81,8 @@ export async function checkAll(dir, { concurrency = 6, timeoutMs } = {}) {
 const label = (r) => (r.status ? `HTTP ${r.status}` : r.error);
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const dir = process.argv[2] || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'content', 'session-one');
+  const content = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'content');
+  const dir = process.argv[2] || ['session-one', 'session-two'].map((d) => path.join(content, d));
   const results = await checkAll(dir);
   const blocked = results.filter((r) => !r.ok && r.blocked);
   const failed = results.filter((r) => !r.ok && !r.blocked);
