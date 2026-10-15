@@ -71,9 +71,9 @@ from: session-one
 
 ### `when: <step id> = <option id>`
 
-השלב מופיע רק כשהתשובה לשלב הקודם הזה שווה לאפשרות. `= _else` מתאים לכל תשובה אחרת: טקסט חופשי, או רקע שאין לו שלב משלו. השלב שנבדק חייב להופיע קודם בזרימה של אותה דמות, להיות שלב בחירה, ובלי `multi`. שני שלבים עם אותו `when:` אצל אותה דמות הם טעות, וגם שני `_else` לאותו שלב.
+השלב מופיע רק כשהתשובה לשלב הקודם הזה שווה לאפשרות. `= _else` מתאים לכל תשובה אחרת: טקסט חופשי, או רקע שאין לו שלב משלו. השלב שנבדק חייב להופיע קודם בזרימה של אותה דמות, להיות שלב בחירה, ובלי `multi`. הערך חייב להיות מזהה של אפשרות בשלב הנבדק (בשלב `background` גם הרקע שה-DM קבע, או מזהה שיש לו מונח `bg_<id>`). כמה שלבים באותו קובץ דמות יכולים לחלוק `when:` אחד (רקע מותאם); שלב משותף (`steps/*.md`) לא חולק `when:` עם אף שלב אחר, וגם שני `_else` לאותו שלב הם טעות.
 
-The step shows only when the answer to that earlier step equals the option. `= _else` matches any other answer: free text, or a background with no step of its own. The target must be an earlier step in that character's flow, a choice step, not `multi`. Two steps with the same `when:` for one character are an error, and so are two `_else` for one target.
+The step shows only when the answer to that earlier step equals the option. `= _else` matches any other answer: free text, or a background with no step of its own. The target must be an earlier step in that character's flow, a choice step, not `multi`. The value must be an option id of that step (for `background` also the character's own `background:`, or any id that has a `bg_<id>` term). Several steps in one character file may share one `when:` (a custom background); a shared step (`steps/*.md`) never shares a `when:` with another step, and two `_else` for one target are an error.
 
 ```markdown
 ## choice: details_soldier
@@ -91,6 +91,41 @@ Above the options the step shows the answer to that step, read-only. The target 
 ```markdown
 ## choice: subclass
 context: rage_style
+```
+
+### `count: <n>`
+
+רק בסשן שני, ורק בשלב בחירה עם `multi: true`. מספר שלם מ-2 עד מספר האפשרויות: השחקן חייב לבחור בדיוק כך. סשן ראשון דוחה אותו ("unknown key").
+
+Session Two only, on a `multi: true` choice step only. A whole number from 2 to the number of options: the player must pick exactly that many. Session One rejects it ("unknown key").
+
+```markdown
+## choice: mharoti_tools
+multi: true
+count: 2
+```
+
+### `random: true`
+
+רק בסשן שני, ורק בשלב בחירה יחיד. השלב מקבל כפתור "אקראי 🎲" שבוחר אחת מהאפשרויות הגלויות, והתשובה שנשמרת היא המזהה שנבחר. פלט: `random: true`. בכל מקום אחר זו טעות.
+
+Session Two only, on a single-answer choice step only. The step gets a "random" button that draws one of the visible options; the stored answer is the drawn option id. Output: `random: true`. An error anywhere else.
+
+```markdown
+## choice: trait
+random: true
+```
+
+### `when:` על אפשרות / `when:` on an option
+
+רק בסשן שני. אפשרות מופיעה רק כשהתשובה האפקטיבית לשלב הנבדק שווה למזהה. אותן בדיקות כמו לשלב (שלב קודם, בחירה יחידה, ערך שהוא אפשרות). `= _else` על אפשרות הוא טעות, ולכל שלב חייבת להישאר לפחות אפשרות אחת בלי `when:`. הפלט: `when: { step, value }` על האפשרות.
+
+Session Two only. An option shows only when the effective answer of the target step equals the id. Same checks as a step `when:` (earlier step, single-answer choice, value is an option). `= _else` on an option is an error, and every step keeps at least one option without `when:`. Output: `when: { step, value }` on the option.
+
+```markdown
+### 📚 ספרותי
+id: bookish
+when: background = sage
 ```
 
 ## שלבים משותפים / Shared steps

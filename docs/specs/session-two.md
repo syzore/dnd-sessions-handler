@@ -292,3 +292,48 @@ Data and flow:
 - More than one details question per background.
 - Matching free-text backgrounds to known ids (no string matching; same reason as the term-markup decision in `session-one-glossary.md` D1).
 - Moving shared terms out of `content/session-one/terms/`.
+
+## Addendum (Aviv, 2026-10-15)
+
+### D11. Fixed backgrounds
+
+Four characters get a `background:` in their front matter (D3), so their background step is skipped and the details step follows the override: deq `soldier`, tenni `sage`, bebby `court_servant`, vilhelm `mharoti_scholar_criminal` (D12). Turator keeps the Session One question, so his background varies.
+
+### D12. Vilhelm's custom background
+
+`mharoti_scholar_criminal` is not an option of the Session One `background` step. Vilhelm's file (`characters/vilhelm.md`) holds four steps of his own, each `when: background = mharoti_scholar_criminal` (F8 relaxed, D14):
+
+1. a multi choice with `count: 2`: two skill proficiencies;
+2. a multi choice with `count: 2`: two tools or languages in total, with a `hint:` not to pick a language the character already knows;
+3. a single choice: one Origin Feat;
+4. a text step: the story (what was studied, what made it criminal).
+
+Term `bg_mharoti_scholar_criminal` (in `terms/`) carries the flavour paragraph. Source text: `/tmp/s2brief/vilhelm-background.md` (adapted to Hebrew and the lore). The loader accepts the value because the character's `background:` override has a `bg_` term (D14 when-value rule). The coverage test accepts a background covered by one character's own steps (D14).
+
+### D13. Characteristics steps
+
+After the details step(s), every character gets four choice steps with ids `trait`, `ideal`, `bond`, `flaw` (personality trait, ideal, bond, flaw). They are per character (option sets differ), so they live in the character files. **Open ordering point:** the flow is own steps first, then shared steps (D5), so steps in a character file come before the shared `details_*` steps. Putting the four after the details needs one of: a loader key to place the shared steps in the middle of the flow, or the details steps in each character file. The content ticket must settle this with Aviv before it writes the files; this ticket does not change the flow order.
+
+- Each has 6 to 8 options, written in Hebrew, adapted from the 2014 PHB and SCAG tables to the lore, with `random: true` (D14). The "random" button draws one of the visible options and stores its id. Free text stays available (`other: true`, as in Session One).
+- Turator's background varies, so his options are keyed with option `when: background = <id>` for the backgrounds that have their own options, plus generic paladin options with no `when:`, shown for any background.
+- Every other character has fixed options (their background is fixed by D11).
+
+### D14. Grammar added to the loader
+
+All Session Two only; Session One keeps rejecting them as "unknown key" and its output is byte-equal.
+
+- **F8 relaxed.** Several steps may share one `when: <target> = <value>` if all are in the same character file. Still errors: two shared steps with one target and value; a character step and a shared step with one target and value; two `_else` for one target in a flow.
+- **`count: <n>`.** Only on `multi: true` choice steps. Whole number from 2 to the number of options. Exactly `n` picks. Error otherwise, with file and line. Output: `count: n`.
+- **Option `when: <step> = <option id>`.** The option shows only when the effective answer of that step equals the id. Same checks as step `when` (F5, F6, F7); `= _else` on an option is an error; every step keeps at least one option without `when`. Output: `when: { step, value }` on the option.
+- **`random: true`.** Only on single-answer choice steps. Output: `random: true`. `random: false` is accepted and dropped.
+- **When-value rule.** A step or option `when: <target> = <value>` needs `<value>` to be an option id of the target step (`_else` on a step excepted). For target `background` it is also accepted when it equals the character's own `background:` override or when a term `bg_<value>` exists (overrides and custom backgrounds are no option of the `from` step). Otherwise an error at the `when:` line.
+- **Coverage test.** A character's own steps count as covering a `bg_*` term. An id that some characters cover and others do not is a custom background and is not required of the rest. Each character still needs exactly one `_else` step.
+
+### Acceptance criteria (addendum)
+
+- [ ] Deq, Tenni, Bebby and Vilhelm skip the background step; their details step follows the override and shows "נקבע על ידי ה-DM".
+- [ ] Vilhelm sees his four steps; the two multi steps accept exactly 2 picks and refuse fewer or more.
+- [ ] Every character has `trait`, `ideal`, `bond`, `flaw` after the details step; each has 6 to 8 options and a "אקראי 🎲" button.
+- [ ] The random button draws one of the options visible for that player and stores its id (never a hidden option, never "random").
+- [ ] Turator sees the options for his effective background plus the generic ones, and no option of another background.
+- [ ] `npm test` passes: one test per rule in D14, with file and line in each error; Session One output is unchanged.
