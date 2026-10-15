@@ -110,3 +110,42 @@ export function contextLine(step, character, carried, answers, { termName = () =
     note: e.source === 's1' ? 'מהסשן הראשון' : e.source === 'dm' ? 'נקבע על ידי ה-DM' : '',
   };
 }
+
+// The DM view rows of one player (D9): { rows: [{ q, a, note }], extras: [[id, value]] }.
+// A row per visible step, plus the background row when it is skipped for the override or Session
+// One (filled from the effective answer, with a source note). Info steps hold no answer. An answer
+// on a hidden option (screenAnswers) or a hidden `when` step is not listed (F20, F22); answers to
+// ids that no step names any more go to `extras` (as Session One). `carried` is the answers map.
+export function dmRows(character, carried, answers, { termName = () => undefined, plain = (s) => s } = {}) {
+  const all = character?.steps || [];
+  const shown = new Set(visibleSteps(character, carried, answers));
+  const rows = [];
+  for (const st of all) {
+    if (st.type === 'info') continue;
+    const e = effective(character, st.id, carried, answers);
+    const skippedBg = st.id === 'background' && st.carry && e && (e.source === 'dm' || e.source === 's1');
+    if (!shown.has(st) && !skippedBg) continue;
+    const q = plain(st.title || st.prompt || st.id);
+    const note = st.id === 'background' ? (e?.source === 's1' ? '(מהסשן הראשון)' : e?.source === 'dm' ? '(נקבע על ידי ה-DM)' : '') : '';
+    let text = '';
+    if (!e) text = '';
+    else if (st.type !== 'choice') text = String(e.value ?? '');
+    else {
+      let value = e.value;
+      if (e.source === 's2') {
+        const opts = visibleOptions(st, { character, carried, answers });
+        value = screenAnswers(st, opts, { [st.id]: e.value })[st.id];
+      }
+      const labelOf = (id) => {
+        const label = st.options?.find((o) => o.id === id)?.label ?? (st.id === 'background' ? termName(`bg_${id}`) : undefined) ?? id;
+        return plain(label);
+      };
+      const picks = (Array.isArray(value) ? value : value == null ? [] : [value]).map(labelOf).join(', ');
+      text = [picks, e.other && `משהו אחר: ${e.other}`].filter(Boolean).join(' · ');
+    }
+    rows.push({ q, a: text || '—', note });
+  }
+  const known = new Set(all.flatMap((s) => [s.id, `${s.id}_other`]));
+  const extras = Object.entries(answers || {}).filter(([k]) => !known.has(k));
+  return { rows, extras };
+}
