@@ -211,9 +211,16 @@ async function start(code) {
   else renderPick();
 }
 
+// Saves go out one at a time, in call order, each with the state as it was when asked: two quick
+// saves (the last step, then the end) can never land out of order and leave done:false.
+let saving = Promise.resolve();
 function save() {
-  const { character: c, answers, done } = state;
-  return api('PUT', `/api/s2/${state.code}/me/${playerId()}`, { character: c, answers, done });
+  const { code, character: c, done } = state;
+  const body = JSON.stringify({ character: c, answers: state.answers, done });
+  const run = () => api('PUT', `/api/s2/${code}/me/${playerId()}`, JSON.parse(body));
+  const sent = saving.then(run);
+  saving = sent.catch(() => {});
+  return sent;
 }
 
 // The character's name: a Session One rename carries (A5).
@@ -233,12 +240,17 @@ async function renderPick(message = '') {
   if (hinted) hinted.textContent += ' · שיחקת בה בסשן הראשון';
   $app.querySelectorAll('.opt').forEach((b) => {
     b.onclick = async () => {
+      // A different character starts clean: the server keeps one answer object per player, and
+      // the old character's answers (and `<id>_other` text) would show on the new one's steps.
+      const changed = b.dataset.id !== state.character;
+      const next = changed ? { answers: {}, done: false } : { answers: state.answers, done: state.done };
       try {
-        await api('PUT', `/api/s2/${state.code}/me/${playerId()}`, { character: b.dataset.id, answers: state.answers, done: state.done });
+        await api('PUT', `/api/s2/${state.code}/me/${playerId()}`, { character: b.dataset.id, ...next });
       } catch (e) {
         return renderPick(e.message);
       }
       state.character = b.dataset.id;
+      Object.assign(state, next);
       await loadContent(state.code).catch(() => {});
       await load(state.code).catch(() => {}); // the carry for this character
       renderIntro();
@@ -281,8 +293,7 @@ function renderStep(i) {
   const steps = visibleSteps(c, carriedAnswers(), state.answers);
   if (i >= steps.length) {
     state.done = true;
-    save().catch(() => {});
-    return renderEnd();
+    return renderEnd(save());
   }
   const raw = steps[Math.max(0, i)];
   const options = raw.type === 'choice' ? visibleOptions(raw, { character: c, carried: carriedAnswers(), answers: state.answers }) : null;
@@ -293,20 +304,43 @@ function renderStep(i) {
   document.getElementById('back').onclick = () => (i === 0 ? renderIntro() : renderStep(i - 1));
   const go = () => {
     commitScreenAnswers(st, before, view, state.answers);
-    save().catch(() => {});
+    if (i + 1 < steps.length) save().catch(() => {}); // the last step is saved once, with done, by the end screen
     renderStep(i + 1);
   };
   wireStep($app, { st, answers: view, onNext: go, onSkip: go });
 }
 
-function renderEnd() {
+// `saving` is the pending save when the player just finished; nothing when returning to a saved form.
+// The "saved" text shows only once the save went through; a failure says so and offers a retry.
+function renderEnd(saving = null) {
   screen(`
     <main class="wrap center">
       <div class="hero-icon">${icon('flag')}</div>
       <h1 class="q-title">${esc(shownName())} מוכן/ה</h1>
-      <p class="lead">התשובות נשמרו. נתראה בסשן!</p>
+      <p class="lead" id="end-msg">${saving ? 'שומר/ת…' : 'התשובות נשמרו. נתראה בסשן!'}</p>
+      <button class="cta hidden" id="retry">${icon('chevL')}<span>לנסות שוב</span></button>
       <button class="cta ghost" id="edit">${icon('pencil')}<span>לשנות</span></button>
     </main>`);
+  const msg = document.getElementById('end-msg');
+  const retry = document.getElementById('retry');
+  const watch = (p) => {
+    retry.classList.add('hidden');
+    msg.className = 'lead';
+    msg.textContent = 'שומר/ת…';
+    p.then(
+      () => {
+        msg.textContent = 'התשובות נשמרו. נתראה בסשן!';
+      },
+      (e) => {
+        msg.className = 'err';
+        msg.setAttribute('role', 'alert');
+        msg.textContent = `השמירה נכשלה: ${e?.status ? e.message : 'אין חיבור לשרת'}. התשובות עוד לא נשמרו.`;
+        retry.classList.remove('hidden');
+      },
+    );
+  };
+  if (saving) watch(saving);
+  retry.onclick = () => watch(save());
   document.getElementById('edit').onclick = () => {
     state.done = false;
     renderStep(0);

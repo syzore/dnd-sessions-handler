@@ -172,6 +172,28 @@ test('content route: a player gets no other character\'s secret, the DM gets all
   assert.ok(!lore(stranger).includes(SECRET));
 });
 
+test('content route: a custom-background term (bg_ override) goes to its own character and the DM only, with what it reaches', async () => {
+  const g = await start();
+  fs.writeFileSync(path.join(g.s2, 'terms', 'custom.md'), '### מותאם\nid: bg_custom\nen: Custom\ncategory: background\n\nרקע סודי של [[inner_ref]].\n\n### פנימי\nid: inner_ref\nen: Inner\ncategory: concept\n\nמשהו.\n');
+  const a = path.join(g.s2, 'characters', 'a.md');
+  fs.writeFileSync(a, fs.readFileSync(a, 'utf8').replace('id: a\n', 'id: a\nbackground: custom\n'));
+  await put(g, 2, 'pa', { character: 'a' });
+  await put(g, 2, 'pb', { character: 'b' });
+  const terms = async (q) => {
+    const r = await (await fetch(`${g.base}/api/s2/content?code=${g.code}&${q}`)).json();
+    assert.ok(r.terms, r.error);
+    return Object.keys(r.terms);
+  };
+  const own = await terms('pid=pa');
+  assert.ok(own.includes('bg_custom') && own.includes('inner_ref'));
+  for (const q of ['pid=pb', 'pid=nobody']) {
+    const other = await terms(q);
+    assert.ok(!other.includes('bg_custom') && !other.includes('inner_ref'), q);
+  }
+  const dm = await terms(`key=${g.key}`);
+  assert.ok(dm.includes('bg_custom') && dm.includes('inner_ref'));
+});
+
 test('pages: /session-two/<anything> serves the Session Two page; the home page has the tile', async () => {
   const g = await start();
   for (const p of ['/session-two', '/session-two/ABCDE', '/session-two/ABCDE/dm']) {

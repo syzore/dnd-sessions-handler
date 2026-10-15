@@ -560,8 +560,9 @@ function reachableTerms(terms, seen) {
 
 // What one viewer may see: the DM gets everything; a player gets only their
 // own character's secret sections (none until they pick), and only the terms
-// that their filtered content reaches (secret-safe, F14).
-export function contentFor(content, { isAdmin, character }) {
+// that their filtered content reaches (secret-safe, F14), plus `extraTerms` (ids the caller
+// vouches for, e.g. the viewer's own background) and what those reach.
+export function contentFor(content, { isAdmin, character, extraTerms = [] }) {
   if (isAdmin) return content;
   const { terms, ...rest } = content;
   const visible = {
@@ -570,5 +571,5 @@ export function contentFor(content, { isAdmin, character }) {
       c.id === character ? c : { ...c, steps: c.steps.map(({ secret, ...st }) => st) },
     ),
   };
-  return { ...visible, terms: reachableTerms(terms || {}, collectRefs(visible, new Set())) };
+  return { ...visible, terms: reachableTerms(terms || {}, collectRefs(visible, new Set(extraTerms))) };
 }
