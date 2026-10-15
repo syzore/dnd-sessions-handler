@@ -1,5 +1,6 @@
 ---
 id: tenni
+background: sage
 ---
 
 # טני

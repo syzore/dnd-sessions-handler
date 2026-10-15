@@ -1,5 +1,6 @@
 ---
 id: deq
+background: soldier
 ---
 
 # רזול

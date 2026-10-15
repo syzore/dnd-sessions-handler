@@ -1,5 +1,6 @@
 ---
 id: bebby
+background: court_servant
 ---
 
 # בבי
