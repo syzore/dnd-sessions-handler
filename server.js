@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI, ApiError as GeminiApiError } from '@google/genai';
 import { loadContent, contentFor, ContentError } from './session-one-content.js';
+import { loadSessionTwo } from './session-two-content.js';
 import { editFields, fileVersions, pathOf, saveFile, splitError, versionOf } from './lore-edit.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -107,6 +108,7 @@ async function api(req, res, parts, url) {
   if (parts[1] === 'sched') return schedApi(req, res, parts, url);
   if (parts[1] === 'tables') return tablesApi(req, res, parts, url);
   if (parts[1] === 's1') return s1Api(req, res, parts, url);
+  if (parts[1] === 's2') return s2Api(req, res, parts, url);
   // parts: ['api', 'sz', 'sessions', code?, sub?, id?]
   if (parts[1] !== 'sz' || parts[2] !== 'sessions') return json(res, 404, { error: 'not found' });
 
@@ -620,6 +622,111 @@ async function s1Api(req, res, parts, url) {
   return json(res, 404, { error: 'not found' });
 }
 
+// ---------- session two: subclass, background and details (docs/specs/session-two.md D7) ----------
+const S2_CONTENT_DIR = process.env.S2_CONTENT_DIR ? path.resolve(process.env.S2_CONTENT_DIR) : path.join(ROOT, 'content', 'session-two');
+
+// Parsed on every request, like Session One: an edit shows on refresh.
+const loadS2 = () => loadSessionTwo({ s1Dir: S1_CONTENT_DIR, s2Dir: S2_CONTENT_DIR });
+
+// The answer keys a character carries over: its `carry` step ids and `context:` targets (D7).
+function carriedIds(content, character) {
+  const ids = new Set();
+  for (const st of content?.characters.find((c) => c.id === character)?.steps || []) {
+    if (st.carry) ids.add(st.id);
+    if (st.context) ids.add(st.context.step);
+  }
+  return ids;
+}
+
+// Session One's answers for this character, whoever played it (D1). A `switch` owner carries nothing (A4).
+function carriedFor(s, character, ids) {
+  if (!character) return null;
+  const owner = Object.values(s.sessionOne?.players || {}).find((p) => p.character === character);
+  if (!owner || owner.choice === 'switch') return null;
+  const answers = {};
+  for (const id of ids) for (const k of [id, `${id}_other`]) if (owner.answers?.[k] !== undefined) answers[k] = owner.answers[k];
+  return { answers, newName: owner.choice === 'rename' ? owner.newName || '' : '' };
+}
+
+async function s2Api(req, res, parts, url) {
+  // GET /api/s2/content?code=&pid=&key=
+  if (req.method === 'GET' && parts[2] === 'content' && parts.length === 3) {
+    const s = db.sessions[String(url.searchParams.get('code') || '').toUpperCase()];
+    const isAdmin = !!s && url.searchParams.get('key') === s.adminKey;
+    let content;
+    try {
+      content = loadS2();
+    } catch (e) {
+      if (e instanceof ContentError) return json(res, 500, { error: `שגיאה בקובץ התוכן: ${e.message}` });
+      throw e;
+    }
+    const character = s?.sessionTwo?.players[url.searchParams.get('pid')]?.character;
+    return json(res, 200, contentFor(content, { isAdmin, character }));
+  }
+
+  // parts: ['api', 's2', code, 'me', pid]
+  const s = db.sessions[String(parts[2] || '').toUpperCase()];
+  if (!s) return json(res, 404, { error: 'הקבוצה לא נמצאה' });
+  const players = (s.sessionTwo ||= { players: {} }).players;
+  const isAdmin = url.searchParams.get('key') === s.adminKey;
+  const owner = (charId, pid) => Object.entries(players).find(([id, p]) => id !== pid && p.character === charId);
+
+  // GET /api/s2/:code?pid=&key=
+  if (req.method === 'GET' && parts.length === 3) {
+    const pid = url.searchParams.get('pid');
+    let content = null;
+    try {
+      content = loadS2();
+    } catch (e) {
+      if (!(e instanceof ContentError)) throw e; // the content route shows the error; carry nothing
+    }
+    const carriedOf = (character) => carriedFor(s, character, carriedIds(content, character));
+    const taken = {};
+    for (const [id, p] of Object.entries(players)) if (id !== pid && p.character) taken[p.character] = '';
+    const mine = players[pid] || null;
+    const s1Character = s.sessionOne?.players[pid]?.character || null;
+    const all = Object.entries(players).map(([id, p]) => ({ id, ...p, carried: carriedOf(p.character) })).sort((a, b) => a.createdAt - b.createdAt);
+    return json(res, 200, {
+      code: s.code,
+      title: s.title,
+      isAdmin,
+      taken,
+      me: mine,
+      carried: carriedOf(mine?.character),
+      s1Character,
+      players: isAdmin ? all : undefined,
+    });
+  }
+
+  // PUT /api/s2/:code/me/:pid  {character?, answers?, done?}
+  if (req.method === 'PUT' && parts[3] === 'me' && parts[4]) {
+    const body = await readBody(req);
+    const pid = clean(parts[4], 64);
+    const prev = players[pid] || { createdAt: Date.now(), character: null, answers: {} };
+    let character = prev.character;
+    if (body.character !== undefined) {
+      character = body.character === null ? null : clean(body.character, 32);
+      if (character && owner(character, pid)) return json(res, 409, { error: 'הדמות הזאת כבר נלקחה' });
+    }
+    const answers = body.answers && typeof body.answers === 'object' ? body.answers : prev.answers;
+    if (JSON.stringify(answers).length > 20000) return json(res, 413, { error: 'too large' });
+    players[pid] = { ...prev, character, answers, done: body.done ?? prev.done ?? false, updatedAt: Date.now() };
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  // DELETE /api/s2/:code/players/:pid?key=  (DM only; frees the character)
+  if (req.method === 'DELETE' && parts[3] === 'players' && parts[4]) {
+    if (!isAdmin) return json(res, 403, { error: 'forbidden' });
+    if (!players[parts[4]]) return json(res, 404, { error: 'not found' });
+    delete players[parts[4]];
+    save();
+    return json(res, 200, { ok: true });
+  }
+
+  return json(res, 404, { error: 'not found' });
+}
+
 // ---------- routing ----------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -636,7 +743,7 @@ const server = http.createServer(async (req, res) => {
 
   // Tool SPAs
   if (parts.length === 0) return serveFile(res, path.join(PUBLIC, 'index.html'));
-  for (const tool of ['session-zero', 'schedule', 'tables', 'session-one'])
+  for (const tool of ['session-zero', 'schedule', 'tables', 'session-one', 'session-two'])
     if (parts[0] === tool && !path.extname(url.pathname)) return serveFile(res, path.join(PUBLIC, tool, 'index.html'));
 
   // Static assets (no path traversal)
