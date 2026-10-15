@@ -596,7 +596,28 @@ test('real content: characteristics steps follow every details step, are random,
       const s = ch.steps[ids.indexOf(id)];
       assert.equal(s.type, 'choice', `${ch.id}.${id}`);
       assert.equal(s.random, true, `${ch.id}.${id} has random: true`);
+      if (ch.id === 'turator') continue; // keyed off his background: checked by the next test
       assert.ok(s.options.length >= 6 && s.options.length <= 8, `${ch.id}.${id} has ${s.options.length} options`);
     }
+  }
+});
+
+test('real content: Turator\'s characteristics are keyed off his background (D13): 6-8 visible per background, >= 3 for free text', () => {
+  const c = loadSessionTwo({ s1Dir: REAL_S1, s2Dir: REAL_S2 });
+  const ch = char(c, 'turator');
+  const bgs = ['knight_of_the_order', 'acolyte', 'soldier', 'folk_hero', 'destined'];
+  assert.deepEqual(step(c, 'turator', 'background').options.map((o) => o.id), bgs);
+  const visible = (s, bg) => s.options.filter((o) => !o.when || (o.when.step === 'background' && o.when.value === bg));
+  for (const id of ['trait', 'ideal', 'bond', 'flaw']) {
+    const s = ch.steps.find((x) => x.id === id);
+    assert.equal(s.random, true, `turator.${id} has random: true`);
+    assert.ok(s.options.every((o) => !o.when || (o.when.step === 'background' && bgs.includes(o.when.value))), `turator.${id}: every when: names one of his backgrounds`);
+    assert.equal(new Set(s.options.map((o) => o.id)).size, s.options.length, `turator.${id}: option ids are unique`);
+    for (const bg of bgs) {
+      const n = visible(s, bg).length;
+      assert.ok(n >= 6 && n <= 8, `turator.${id} shows ${n} options for ${bg}`);
+    }
+    const free = visible(s, 'free text, no such id').length;
+    assert.ok(free >= 3, `turator.${id} shows ${free} options for a free-text background`);
   }
 });
