@@ -142,7 +142,7 @@ category: race
 image: https://static.wikia.nocookie.net/forgottenrealms/images/6/60/Half-ogre-5e.jpg/revision/latest?cb=20171011024251
 link: Half-ogre (Forgotten Realms Wiki) — https://forgottenrealms.fandom.com/wiki/Half-ogre
 
-חצאי-אוגרים הם צאצאים של [[ogre]] ו[[human]]: ענקיים, חזקים, ובעיני רבים פראיים. ב[[midgard]] העיר המהארוטית [[kaanesh]] מפורסמת ב[[ogre]] שלה, שמגויסים כחיל הלם. זה השם השני שבו מכנים את דק.
+חצאי-אוגרים הם צאצאים של [[ogre]] ו[[human]]: ענקיים, חזקים, ובעיני רבים פראיים. ב[[midgard]] העיר המהארוטית [[kaanesh]] מפורסמת ב[[ogre]] שלה, שמגויסים כחיל הלם. זה השם השני שבו מכנים את רזול.
 
 <!-- sources: KP-wasted ("dead-eyed giants haunted by their ghostly ancestors"); KP-dragoncoil ("Fire giants support the Mharoti armies"); WB-writeup (Aurgelmir, Cassilon); KP-serpent (Veles "Patron of Giants and Dragons") -->
 <!-- uncertain: That stone and fire giants ruled the Dragoncoil peaks before the dragons (goliath-tribes.md) is campaign invention. -->
@@ -168,7 +168,7 @@ category: race
 image: https://static.wikia.nocookie.net/forgottenrealms/images/0/0f/HillGiant-5e.jpg/revision/latest?cb=20141112170803
 link: Hill giant (Forgotten Realms Wiki) — https://forgottenrealms.fandom.com/wiki/Hill_giant
 
-ענקי הגבעות הם ה[[giant]] הנמוכים והגסים ביותר: רעבים תמיד, נואשים לאוכל ולאדמה. משפחות ענקי הגבעות של דק מתייחסות ל[[cassilon]] האגדית. האימפריה צדה אותם, משעבדת אותם ושולחת אותם בשורה הראשונה של הלגיונות.
+ענקי הגבעות הם ה[[giant]] הנמוכים והגסים ביותר: רעבים תמיד, נואשים לאוכל ולאדמה. משפחות ענקי הגבעות של רזול מתייחסות ל[[cassilon]] האגדית. האימפריה צדה אותם, משעבדת אותם ושולחת אותם בשורה הראשונה של הלגיונות.
 
 <!-- sources: KP-khazzaki ("Kaa'nesh is a home of ogres and dragonkin"); WB-writeup (blood mages' tattoos) -->
 <!-- uncertain: The KP "Tusked Crimson Ogre" image is a KP monster, not confirmed as a Kaa'nesh ogre. -->

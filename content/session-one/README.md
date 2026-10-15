@@ -35,13 +35,13 @@ Ids are Latin lowercase, digits and `_`. Once players have answered, never chang
 ```markdown
 ---
 id: deq
-name: דק
+name: רזול
 class: ברברי
 icon: sword
 order: 2
 ---
 
-# דק
+# רזול
 
 ## text: left_behind
 prompt: מה גרם לך לעזוב, ומה השארת מאחור?
