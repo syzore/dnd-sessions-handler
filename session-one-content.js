@@ -23,7 +23,7 @@ const TERM_KEYS = new Set(['id', 'en', 'category', 'aliases', 'image', 'link']);
 const TERM_REPEAT = new Set(['image', 'link']);
 export const TERM_CATEGORIES = ['race', 'class', 'place', 'god', 'faction', 'person', 'concept', 'background'];
 const MAX_IMAGES = 3;
-const REF_ID = /^[a-z0-9_]+$/;
+export const REF_ID = /^[a-z0-9_]+$/;
 const NOT_HERE = 'a term reference [[...]] is not allowed here (only in title, prompt, hint, lore bullets, option label / subtitle / description and term blurbs)';
 const REF_STEP_KEYS = new Set(['title', 'prompt', 'hint']); // step keys whose text may hold [[term]] references
 
@@ -32,7 +32,7 @@ const unref = (s) => s.replace(/\[\[([^\]|]*)(?:\|((?:(?!\]\]).)*))?\]\]/g, (_, 
 const slug = (s) => unref(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 
 // HTML comments are notes for the author: blank them, keep line numbers.
-const linesOf = (text) =>
+export const linesOf = (text) =>
   text.replace(/\r\n?/g, '\n').replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, '')).split('\n');
 
 // A web URL that goes into src/href: https only.
@@ -60,7 +60,7 @@ export function parseLink(value, fail) {
 
 // Check every [[...]] term reference in a file, line by line (comments already blanked).
 // allowed: the line numbers whose text may hold references. terms: Map of id -> term.
-function checkRefs(lines, rel, allowed, terms) {
+export function checkRefs(lines, rel, allowed, terms) {
   lines.forEach((line, i) => {
     const n = i + 1;
     if (!line.includes('[[')) return;
@@ -85,7 +85,7 @@ function checkRefs(lines, rel, allowed, terms) {
 
 // Parse one terms/*.md file: "### <Hebrew name>", key lines, a blank line, blurb paragraphs.
 // Returns { terms: [{ ...term, line }], allowed: Set of blurb line numbers }.
-function parseTermFile(text, rel, key, withSrc) {
+export function parseTermFile(text, rel, key, withSrc) {
   const lines = linesOf(text);
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
@@ -173,7 +173,12 @@ function parseTermFile(text, rel, key, withSrc) {
 // Parse one md file. kind: 'character' | 'world' | 'list'.
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
 // terms: Map of id -> term, for option "term:" (D4).
-function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc } = {}) {
+// ext (Session Two only; Session One passes none and keeps its strict keys):
+//   { frontKeys: { key: field }, frontRequired: [fields], stepKeys: [keys] }
+// extra front-matter lines and step keys are accepted as raw strings, steps get
+// `at: { step, <key> }` line numbers, and a step with `from:` skips the
+// "needs options / prompt" checks (the loader fills it in).
+export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext } = {}) {
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
   };
@@ -182,14 +187,18 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
   const lines = linesOf(text);
   const allowed = new Set(); // lines whose text may hold [[term]] references
 
+  const frontKeys = ext?.frontKeys ? { ...FRONT_KEYS, ...ext.frontKeys } : FRONT_KEYS;
+  const stepKeys = ext?.stepKeys ? new Set([...STEP_KEYS, ...ext.stepKeys]) : STEP_KEYS;
   const front = {};
+  const frontLines = {};
   const steps = [];
   let i = 0;
 
   // Front matter: --- key: value lines ---
   if (kind === 'character') {
     while (i < lines.length && !lines[i].trim()) i++;
-    if (lines[i]?.trim() !== '---') fail(i + 1, 'a character file starts with a --- front-matter block (id, name, class, icon, order)');
+    if (lines[i]?.trim() !== '---')
+      fail(i + 1, `a character file starts with a --- front-matter block (${ext?.frontRequired ? Object.keys(frontKeys).join(', ') : 'id, name, class, icon, order'})`);
     for (i++; ; i++) {
       if (i >= lines.length) fail(i, 'front matter is not closed with ---');
       const l = lines[i].trim();
@@ -197,11 +206,12 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       if (!l) continue;
       noRef(i + 1, l);
       const m = l.match(KEY_LINE);
-      if (!m || !FRONT_KEYS[m[1]]) fail(i + 1, `unknown front-matter line "${l}" (allowed: ${Object.keys(FRONT_KEYS).join(', ')})`);
-      front[FRONT_KEYS[m[1]]] = m[2].trim();
+      if (!m || !frontKeys[m[1]]) fail(i + 1, `unknown front-matter line "${l}" (allowed: ${Object.keys(frontKeys).join(', ')})`);
+      front[frontKeys[m[1]]] = m[2].trim();
+      frontLines[frontKeys[m[1]]] = i + 1;
     }
     i++;
-    for (const k of ['id', 'name', 'cls']) if (!front[k]) fail(1, `front matter needs "${k === 'cls' ? 'class' : k}:"`);
+    for (const k of ext?.frontRequired || ['id', 'name', 'cls']) if (!front[k]) fail(1, `front matter needs "${k === 'cls' ? 'class' : k}:"`);
   }
 
   let step = null; // the step being filled
@@ -241,13 +251,14 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       if (withSrc && Object.keys(src).length) step.src = src;
       delete step.use;
     }
-    if (step.type === 'choice' && !step.options?.length && !step.bullets) fail(n, 'a choice step needs ### options (or "use: <list>")');
-    if (step.type === 'info' && !step.known && !step.secret) fail(n, 'an info step needs a ### known or ### secret section');
+    const filled = ext && step.from !== undefined; // the loader copies the Session One step in
+    if (!filled && step.type === 'choice' && !step.options?.length && !step.bullets) fail(n, 'a choice step needs ### options (or "use: <list>")');
+    if (!filled && step.type === 'info' && !step.known && !step.secret) fail(n, 'an info step needs a ### known or ### secret section');
     for (const it of [...(step.known || []), ...(step.secret || []), ...(step.bullets || [])]) {
       if (!it.text) fail(it.line, 'this lore bullet has no text');
       delete it.line;
     }
-    if (kind !== 'list' && step.type !== 'info' && !step.title && !step.prompt) fail(n, 'a question step needs "prompt:" (or "title:")');
+    if (!filled && kind !== 'list' && step.type !== 'info' && !step.title && !step.prompt) fail(n, 'a question step needs "prompt:" (or "title:")');
     const ids = new Set();
     for (const o of step.options || []) {
       if (ids.has(o.id)) fail(o.line, `option id "${o.id}" is used twice in this step`);
@@ -276,7 +287,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       const m = raw.slice(3).trim().match(/^([a-z]+)\s*:\s*([a-z0-9_]+)$/);
       if (!m || !STEP_TYPES.includes(m[1]))
         fail(n, `a step heading is "## <type>: <id>", type one of ${STEP_TYPES.join(', ')}, id Latin letters, digits, _`);
-      step = { id: m[2], type: m[1] };
+      step = { id: m[2], type: m[1], ...(ext && { at: { step: n } }) };
       stepLine = n;
       section = item = null;
       continue;
@@ -327,8 +338,8 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
     // step-level key lines (before any ### section)
     if (section === null) {
       const m = l.match(KEY_LINE);
-      if (!m) fail(n, `expected a "key: value" line (${[...STEP_KEYS].join(', ')}) or a ### section`);
-      if (!STEP_KEYS.has(m[1])) fail(n, `unknown key "${m[1]}" (allowed: ${[...STEP_KEYS].join(', ')})`);
+      if (!m) fail(n, `expected a "key: value" line (${[...stepKeys].join(', ')}) or a ### section`);
+      if (!stepKeys.has(m[1])) fail(n, `unknown key "${m[1]}" (allowed: ${[...stepKeys].join(', ')})`);
       if (!REF_STEP_KEYS.has(m[1])) noRef(n, l);
       let v = m[2].trim();
       if (BOOL.has(m[1])) {
@@ -343,6 +354,7 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
       if (REF_STEP_KEYS.has(m[1])) allowed.add(n);
       if (withSrc && REF_STEP_KEYS.has(m[1])) (step.src ||= {})[m[1]] = { file: key, line: n };
       step[m[1]] = v;
+      if (ext) step.at[m[1]] = n;
       continue;
     }
 
@@ -398,13 +410,13 @@ function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: w
         if (!o.id) throw new ContentError(`${rel}: option "${o.label}" in step "${st.id}" needs an "id:" line (the label has no Latin letters)`);
       }
     }
-  return { front, steps, lines, allowed };
+  return { front, frontLines, steps, lines, allowed };
 }
 
-const readDisk = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
-const mdFilesDisk = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
+export const readDisk = (dir, rel) => fs.readFileSync(path.join(dir, rel), 'utf8');
+export const mdFilesDisk = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.md')).sort() : []);
 // Reorder so id/type come first in each step and each option (purely cosmetic in the JSON).
-const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(rest.options && { options: rest.options.map(({ id, ...o }) => ({ id, ...o })) }) });
+export const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(rest.options && { options: rest.options.map(({ id, ...o }) => ({ id, ...o })) }) });
 
 // Read and parse the whole content folder. Throws ContentError.
 // override: { file: 'terms/x.md', text } parses with that file's text replaced (or added),

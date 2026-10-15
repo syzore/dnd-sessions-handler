@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkAll } from '../scripts/check-terms.js';
+import { checkAll, collectUrls, DEFAULT_DIRS } from '../scripts/check-terms.js';
 
 const FIX = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'session-one', 'urls');
 
@@ -32,4 +32,11 @@ test('check-terms: reports a dead term image, term link and step link with file 
     server.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('check-terms: by default it covers Session One and Session Two, term links and step links', () => {
+  assert.deepEqual(DEFAULT_DIRS.map((d) => path.basename(d)), ['session-one', 'session-two']);
+  const two = collectUrls(DEFAULT_DIRS[1]);
+  assert.ok(two.some((u) => u.kind === 'term link' && u.file === 'terms/subclasses.md'), 'a Session Two term link');
+  assert.ok(two.some((u) => u.kind === 'step link' && u.file === 'characters/deq.md'), 'a Session Two step link');
 });
