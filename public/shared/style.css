@@ -661,3 +661,6 @@ html.tp-lock, html.tp-lock body { overflow: hidden; }
 .ed-field textarea { overflow: hidden; resize: none; min-height: 48px; }
 .ed-extra .cta { margin-top: 10px; }
 .ed-card .ed-form { padding: 14px; border: 2px solid var(--gold); border-radius: var(--radius); background: var(--card); }
+.opt[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.opt[aria-disabled="true"]:hover { border-color: var(--line); }
+.opt[aria-disabled="true"]:active { transform: none; }

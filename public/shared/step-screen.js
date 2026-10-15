@@ -6,6 +6,9 @@ import { icon } from '/shared/icons.js';
 import { esc } from '/shared/lib.js';
 import { richText, optionLabel } from '/shared/terms.js';
 import { termInfoButton, stepLinkHtml } from '/shared/term-popup.js';
+import { RANDOM_CARD_ID, countState, isLocked, canAdvance, drawRandom } from '/shared/step-rules.js';
+
+export { RANDOM_CARD_ID, countState, isLocked, canAdvance, drawRandom };
 
 // A choice card whose option says `term:` gets an info button beside it, not inside the
 // option <button> (D4). Player flow and DM compendium share the layout.
@@ -51,6 +54,22 @@ export function pickListHtml(characters, { taken = {}, selected = null } = {}) {
 
 const isChoice = (st) => st.type === 'choice';
 
+// `count: n` counter, in the hint style. Empty for steps without a count.
+const countHintHtml = (st, cur) => {
+  const cs = countState(st, cur);
+  return cs ? `<p class="hint count-hint" id="count-hint" aria-live="polite">${esc(cs.label)}</p>` : '';
+};
+
+// `random: true` on a single-choice step: the last card, "אקראי 🎲". Never an answer itself.
+const randomCardHtml = (cards) => `
+          <button class="opt ${cards ? 'opt-card' : ''}" data-id="${RANDOM_CARD_ID}" id="random-card">
+            <span class="opt-emoji" aria-hidden="true">🎲</span>
+            <span class="opt-text">
+              <span class="opt-label">אקראי 🎲</span>
+              <span class="opt-desc">בחירה אקראית מתוך האפשרויות</span>
+            </span>
+          </button>`;
+
 // The body of one step: info lore, choice cards (+ "משהו אחר" box), or a text box; then the step link.
 export function stepBodyHtml(st, answers) {
   const cur = answers[st.id];
@@ -61,8 +80,8 @@ export function stepBodyHtml(st, answers) {
     st.type === 'info'
       ? loreHtml(st)
       : isChoice(st)
-      ? `<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => withInfo(o, `
-          <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}">
+      ? `${countHintHtml(st, cur)}<div class="grid ${cards ? 'one cards' : ''}">${st.options.map((o) => withInfo(o, `
+          <button class="opt ${cards ? 'opt-card' : ''} ${picked(o.id) ? 'sel' : ''}" data-id="${o.id}" aria-pressed="${picked(o.id)}"${isLocked(st, cur, o.id) ? ' aria-disabled="true"' : ''}>
             ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
             <span class="opt-text">
               <span class="opt-label">${optionLabel(o)}</span>
@@ -70,7 +89,7 @@ export function stepBodyHtml(st, answers) {
               ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
             </span>
             <span class="opt-check">${icon('check')}</span>
-          </button>`)).join('')}</div>${withOther ? `
+          </button>`)).join('')}${st.random && !st.multi ? randomCardHtml(cards) : ''}</div>${withOther ? `
         <label class="other-box"><span>משהו אחר / לכתוב בעצמי</span>
           <textarea class="big-text" id="other" rows="3" maxlength="1000">${esc(answers[`${st.id}_other`] || '')}</textarea></label>` : ''}`
       : `<textarea class="big-text" id="ans" rows="5" maxlength="2000">${esc(cur)}</textarea>`;
@@ -104,12 +123,17 @@ export function stepScreenHtml({ st, i, n, kicker, answers, contextHtml = '' }) 
 export function wireStep(root, { st, answers, onNext, onSkip }) {
   const otherKey = `${st.id}_other`;
   const next = document.getElementById('next');
-  const answered = () => {
-    const v = answers[st.id];
-    return (Array.isArray(v) ? v.length > 0 : !!v) || !!answers[otherKey]?.trim();
+  const refresh = () => {
+    next.disabled = !st.optional && !canAdvance(st, answers);
+    if (!countState(st, answers[st.id])) return;
+    // count step: update the counter and lock/unlock the unpicked cards
+    const hint = document.getElementById('count-hint');
+    if (hint) hint.textContent = countState(st, answers[st.id]).label;
+    root.querySelectorAll('.opt').forEach((x) => {
+      if (isLocked(st, answers[st.id], x.dataset.id)) x.setAttribute('aria-disabled', 'true');
+      else x.removeAttribute('aria-disabled');
+    });
   };
-  const textEmpty = () => st.type === 'text' && !String(answers[st.id] || '').trim();
-  const refresh = () => (next.disabled = !st.optional && (isChoice(st) ? !answered() : textEmpty()));
   refresh();
   next.onclick = () => onNext();
   if (st.optional) {
@@ -122,19 +146,28 @@ export function wireStep(root, { st, answers, onNext, onSkip }) {
   if (isChoice(st)) {
     root.querySelectorAll('.opt').forEach((b) => {
       b.onclick = () => {
-        const id = b.dataset.id;
+        let id = b.dataset.id;
+        let card = b;
+        if (id === RANDOM_CARD_ID) {
+          id = drawRandom(st.options, answers[st.id]);
+          if (id == null) return;
+          card = [...root.querySelectorAll('.opt')].find((x) => x.dataset.id === id);
+          card.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        }
+        if (card.getAttribute('aria-disabled') === 'true') return;
         if (st.multi) {
           const prev = Array.isArray(answers[st.id]) ? answers[st.id] : answers[st.id] ? [answers[st.id]] : [];
           const nextPicks = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
           if (nextPicks.length) answers[st.id] = nextPicks;
           else delete answers[st.id];
-          b.classList.toggle('sel', nextPicks.includes(id));
-          b.setAttribute('aria-pressed', nextPicks.includes(id));
+          card.classList.toggle('sel', nextPicks.includes(id));
+          card.setAttribute('aria-pressed', nextPicks.includes(id));
         } else {
           answers[st.id] = id;
           root.querySelectorAll('.opt').forEach((x) => {
-            x.classList.toggle('sel', x === b);
-            x.setAttribute('aria-pressed', x === b);
+            if (x.dataset.id === RANDOM_CARD_ID) return;
+            x.classList.toggle('sel', x === card);
+            x.setAttribute('aria-pressed', x === card);
           });
         }
         refresh();
