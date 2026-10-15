@@ -12,6 +12,7 @@ import { loadContent, contentFor } from '../session-one-content.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASIC = path.join(HERE, 'fixtures', 'session-two', 'basic', 'content');
+const CUSTOM = path.join(HERE, 'fixtures', 'session-two', 'custom', 'content'); // basic + a custom background, count:, option when:, random:
 const REAL = path.join(HERE, '..', 'content');
 
 // Copy a content/ tree to a temp dir; edits: { 'session-two/steps/x.md': text | (old) => new }.
@@ -36,8 +37,8 @@ const step = (c, cid, sid) => char(c, cid).steps.find((s) => s.id === sid);
 
 // The load must throw a ContentError "content/<file> line <n>: <message>" where line <n> of that
 // file holds `lineText`; `message` is matched against the part after the colon.
-function fails(edits, { file, lineText, message }) {
-  const root = copyWith(BASIC, edits);
+function fails(edits, { file, lineText, message, from = BASIC }) {
+  const root = copyWith(from, edits);
   assert.throws(
     () => loadFrom(root),
     (e) => {
@@ -56,6 +57,8 @@ function fails(edits, { file, lineText, message }) {
 const A = 'session-two/characters/a.md';
 const B = 'session-two/characters/b.md';
 const DETAILS = 'session-two/steps/details.md';
+const CA = 'session-two/characters/a.md'; // in CUSTOM
+const CB = 'session-two/characters/b.md'; // in CUSTOM
 
 // ---------------------------------------------------------------- shape
 
@@ -263,9 +266,27 @@ test('F7: when: target is a text step, an info step, or multi', () => {
   fails({ [DETAILS]: (s) => s.replace('## choice: details_sage', '## text: txt\nprompt: x\n\n## choice: details_sage').replace('when: background = sage', 'when: txt = a') }, { file: DETAILS, lineText: 'when: txt = a', message: 'must be a single-answer choice step' });
 });
 
-test('F8: two steps with the same when: target and value, or two _else, name both step ids', () => {
-  fails({ [DETAILS]: replace('when: background = scribe', 'when: background = sage') }, { file: DETAILS, lineText: 'when: background = sage', message: 'steps "details_sage" and "details_scribe" both have "when: background = sage"' });
+test('F8: two shared steps with the same when: target and value, or two _else, name both step ids', () => {
+  fails({ [DETAILS]: replace('when: background = scribe', 'when: background = sage') }, { file: DETAILS, lineText: 'when: background = sage', message: 'steps "details_sage" and "details_scribe" both have "when: background = sage" (a shared step' });
   fails({ [DETAILS]: (s) => s + '\n## text: details_more\nwhen: background = _else\nprompt: x\n' }, { file: DETAILS, lineText: 'when: background = _else', message: 'steps "details_other" and "details_more" both have "when: background = _else"' });
+});
+
+test('F8: several steps of one character file may share a when: value (custom background)', () => {
+  const c = load({}, CUSTOM);
+  assert.deepEqual(char(c, 'a').steps.filter((s) => s.when?.value === 'mystic').map((s) => s.id), ['mystic_tools', 'mystic_langs', 'mystic_path', 'mystic_story']);
+  assert.equal(char(c, 'b').steps.some((s) => s.when?.value === 'mystic'), false); // b has none
+});
+
+test('F8: a character step and a shared step with the same when: target and value is an error (reported at the shared step)', () => {
+  fails({ [DETAILS]: replace('when: background = scribe', 'when: background = mystic') }, { from: CUSTOM, file: DETAILS, lineText: 'when: background = mystic', message: 'steps "mystic_tools" and "details_scribe" both have "when: background = mystic" (a shared step (steps/*.md) cannot share' });
+});
+
+test('F8: two _else steps of one character file are an error, even in the same file', () => {
+  const twoElse = '## text: else_one\nwhen: background = _else\nprompt: x\n\n## text: else_two\nwhen: background = _else\nprompt: y\n';
+  fails({ [CA]: (s) => s + '\n' + twoElse }, { from: CUSTOM, file: CA, lineText: 'when: background = _else', message: 'steps "else_one" and "else_two" both have "when: background = _else" (only one step per character may have "= _else")' });
+  // the error is at the second one
+  const root = copyWith(CUSTOM, { [CA]: (s) => s + '\n' + twoElse });
+  assert.throws(() => loadFrom(root), (e) => /characters\/a\.md line (\d+)/.test(e.message) && fs.readFileSync(path.join(root, CA), 'utf8').split('\n')[Number(e.message.match(/line (\d+)/)[1]) - 2].includes('else_two'));
 });
 
 test('F9: context: target is in neither flow nor the Session One file, or is an info step', () => {
@@ -296,6 +317,128 @@ test('shared steps: no ### known / ### secret, no front matter', () => {
   fails({ [DETAILS]: (s) => `---\nid: x\n---\n${s}` }, { file: DETAILS, lineText: '---', message: 'text before the first "## <type>: <id>" step heading' });
 });
 
+// ------------------------------------------------- count:, random:, option when: (D14)
+
+test('shape: count and random come out as written; option when becomes { step, value } without a line number', () => {
+  const c = load({}, CUSTOM);
+  assert.equal(step(c, 'a', 'mystic_tools').count, 2);
+  assert.equal(step(c, 'a', 'mystic_tools').multi, true);
+  assert.equal(step(c, 'a', 'trait').random, true);
+  assert.deepEqual(step(c, 'a', 'trait').options.map((o) => o.when), [undefined, { step: 'background', value: 'sage' }, { step: 'background', value: 'scribe' }, undefined]);
+  assert.ok(!JSON.stringify(c).includes('whenLine'));
+  assert.equal(char(c, 'a').background, 'mystic');
+  assert.ok(c.terms.bg_mystic);
+});
+
+test('shape: "random: false" is dropped from the output', () => {
+  const c = load({ [CA]: replace('random: true', 'random: false') }, CUSTOM);
+  assert.ok(!('random' in step(c, 'a', 'trait')));
+});
+
+test('shape: count and random work in a shared step too', () => {
+  const c = load({ 'session-two/steps/more.md': '## choice: m\nmulti: true\ncount: 2\nprompt: x\n\n### א\nid: x\n\n### ב\nid: y\n\n## choice: r\nrandom: true\nprompt: y\n\n### ג\nid: z\n' }, CUSTOM);
+  assert.equal(step(c, 'a', 'm').count, 2);
+  assert.equal(step(c, 'b', 'r').random, true);
+});
+
+test('count: only on a multi: true choice step', () => {
+  fails({ [CA]: replace('multi: true\ncount: 2\nprompt: בחר/י שני כלים', 'count: 2\nprompt: בחר/י שני כלים') }, { from: CUSTOM, file: CA, lineText: 'count: 2', message: '"count: 2" works on a choice step with "multi: true" only' });
+  fails({ [CA]: replace('multi: true\ncount: 2\nprompt: בחר/י שני כלים', 'multi: false\ncount: 2\nprompt: בחר/י שני כלים') }, { from: CUSTOM, file: CA, lineText: 'count: 2', message: 'with "multi: true" only' });
+  fails({ [CA]: replace('when: background = mystic\nprompt: ספר/י', 'when: background = mystic\ncount: 2\nprompt: ספר/י') }, { from: CUSTOM, file: CA, lineText: 'count: 2', message: 'with "multi: true" only' });
+});
+
+test('count: a whole number from 2 to the number of options', () => {
+  for (const [bad, msg] of [['1', 'from 2 to the number of options (3)'], ['0', 'from 2 to'], ['4', 'from 2 to the number of options (3)']])
+    fails({ [CA]: replace('multi: true\ncount: 2\nprompt: בחר/י שני כלים', `multi: true\ncount: ${bad}\nprompt: בחר/י שני כלים`) }, { from: CUSTOM, file: CA, lineText: `count: ${bad}`, message: msg });
+  for (const bad of ['two', '2.5', '-2', '']) // "" is an empty value
+    fails({ [CA]: replace('multi: true\ncount: 2\nprompt: בחר/י שני כלים', `multi: true\ncount: ${bad}\nprompt: בחר/י שני כלים`) }, { from: CUSTOM, file: CA, lineText: 'count:', message: 'count is a whole number' });
+  assert.equal(step(load({ [CA]: replace('multi: true\ncount: 2\nprompt: בחר/י שני כלים', 'multi: true\ncount: 3\nprompt: בחר/י שני כלים') }, CUSTOM), 'a', 'mystic_tools').count, 3);
+});
+
+test('count: appears twice in one step', () => {
+  fails({ [CA]: replace('count: 2\nprompt: בחר/י שני כלים', 'count: 2\ncount: 3\nprompt: בחר/י שני כלים') }, { from: CUSTOM, file: CA, lineText: 'count: 3', message: '"count:" appears twice in this step' });
+});
+
+test('random: only on a single-answer choice step', () => {
+  fails({ [CA]: replace('random: true\nprompt: מה התכונה', 'random: true\nmulti: true\nprompt: מה התכונה') }, { from: CUSTOM, file: CA, lineText: 'random: true', message: 'works on a single-answer choice step only' });
+  fails({ [CA]: replace('when: background = mystic\nprompt: ספר/י', 'when: background = mystic\nrandom: true\nprompt: ספר/י') }, { from: CUSTOM, file: CA, lineText: 'random: true', message: 'works on a single-answer choice step only' });
+  fails({ [CA]: (s) => s + '\n## info: note\nrandom: true\n\n### known\n- x\n' }, { from: CUSTOM, file: CA, lineText: 'random: true', message: 'works on a single-answer choice step only' });
+  fails({ [CA]: replace('random: true', 'random: yes') }, { from: CUSTOM, file: CA, lineText: 'random: yes', message: '"random:" is true or false' });
+  fails({ [CA]: replace('random: true', 'random: true\nrandom: false') }, { from: CUSTOM, file: CA, lineText: 'random: false', message: '"random:" appears twice' });
+});
+
+test('option when: F5 syntax, with the same message as a step when', () => {
+  for (const bad of ['background', 'background sage', 'Background = sage', 'background = ', 'background = a b'])
+    fails({ [CA]: replace('when: background = sage', `when: ${bad}`) }, { from: CUSTOM, file: CA, lineText: 'when:', message: 'is "when: <step id> = <option id>"' });
+});
+
+test('option when: "= _else" is not allowed on an option', () => {
+  fails({ [CA]: replace('when: background = sage', 'when: background = _else') }, { from: CUSTOM, file: CA, lineText: 'when: background = _else', message: 'option "bookish": "when: background = _else": "= _else" is not allowed on an option' });
+});
+
+test('option when: F6 the target must be an earlier step of this character (checked per character, shared steps too)', () => {
+  fails({ [CA]: replace('when: background = sage', 'when: later = sage') }, { from: CUSTOM, file: CA, lineText: 'when: later = sage', message: '"later" is not an earlier step of character "a"' });
+  // a step that exists but only later in the flow
+  fails({ [CA]: replace('when: background = sage', 'when: details_other = sage') }, { from: CUSTOM, file: CA, lineText: 'when: details_other = sage', message: 'not an earlier step of character "a"' });
+  // a shared step: b has no "trait" step, so only the check for b can fail
+  const shared = '## choice: s1\nprompt: x\n\n### א\nid: x\n\n## choice: s2\nprompt: y\n\n### ב\nid: y\n\n### ג\nid: z\nwhen: trait = calm\n';
+  fails({ 'session-two/steps/more.md': shared }, { from: CUSTOM, file: 'session-two/steps/more.md', lineText: 'when: trait = calm', message: 'character "b"' });
+});
+
+test('option when: F7 the target is a multi, text or info step', () => {
+  fails({ [CA]: replace('when: background = sage', 'when: mystic_tools = wrench') }, { from: CUSTOM, file: CA, lineText: 'when: mystic_tools = wrench', message: 'must be a single-answer choice step' }); // mystic_tools is earlier and multi
+  fails({ [CA]: replace('when: background = sage', 'when: mystic_story = x') }, { from: CUSTOM, file: CA, lineText: 'when: mystic_story = x', message: 'must be a single-answer choice step' });
+  fails({ [CA]: replace('when: background = sage', 'when: lore = x') }, { from: CUSTOM, file: CA, lineText: 'when: lore = x', message: 'must be a single-answer choice step' });
+});
+
+test('option when: the value must be an option of the target step', () => {
+  fails({ [CA]: replace('when: background = sage', 'when: background = sagee') }, { from: CUSTOM, file: CA, lineText: 'when: background = sagee', message: '"background" has no option "sagee"' });
+});
+
+test('when-value rule: a step when: value must be an option id of the target (background also takes a bg_<value> term)', () => {
+  fails({ [DETAILS]: replace('when: background = scribe', 'when: background = scribee') }, { file: DETAILS, lineText: 'when: background = scribee', message: '"when: background = scribee": "background" has no option "scribee"' });
+  fails({ [CA]: replace('when: background = mystic\nprompt: ספר/י', 'when: subclass = nowhere\nprompt: ספר/י') }, { from: CUSTOM, file: CA, lineText: 'when: subclass = nowhere', message: '"subclass" has no option "nowhere"' });
+  // "mystic" is no option of the background step but has a bg_mystic term (and is a's own background:); b has no override
+  const c = load({ [CB]: (s) => s + '\n## text: b_extra\nwhen: background = mystic\nprompt: x\n' }, CUSTOM);
+  assert.equal(step(c, 'b', 'b_extra').when.value, 'mystic');
+  fails({ [CB]: (s) => s + '\n## text: b_extra\nwhen: background = nonesuch\nprompt: x\n' }, { from: CUSTOM, file: CB, lineText: 'when: background = nonesuch', message: '"background" has no option "nonesuch"' });
+  // _else is never checked against the options
+  assert.ok(load({}, CUSTOM)); // the shared details_other has "= _else" and loads
+});
+
+test('option when: at least one option of the step has none', () => {
+  fails({ [CA]: (s) => replace('### 🧘 רגוע\nid: calm\n', '### 🧘 רגוע\nid: calm\nwhen: background = sage\n')(replace('### 🐗 פראי\nid: wild', '### 🐗 פראי\nid: wild\nwhen: background = sage')(s)) }, { from: CUSTOM, file: CA, lineText: '## choice: trait', message: 'every option of step "trait" has a "when:"' });
+});
+
+test('option when: two when lines in one option', () => {
+  fails({ [CA]: replace('when: background = sage', 'when: background = sage\nwhen: background = scribe') }, { from: CUSTOM, file: CA, lineText: 'when: background = scribe', message: '"when:" appears twice in this option' });
+});
+
+test('Session One keeps rejecting count: and random: (F10)', () => {
+  const S1A = 'session-one/characters/a.md';
+  for (const key of ['count: 2', 'random: true'])
+    fails({ [S1A]: replace('## choice: element', `## choice: element\n${key}`) }, { file: S1A, lineText: key, message: `unknown key "${key.split(':')[0]}"` });
+  const root = copyWith(BASIC, { [S1A]: replace('## choice: element', '## choice: element\nrandom: true') });
+  assert.throws(() => loadContent(path.join(root, 'session-one')), /unknown key "random"/);
+});
+
+test('count: and random: are unknown keys in the intro and in lists', () => {
+  fails({ 'session-two/intro.md': replace('title: סשן שני', 'title: סשן שני\ncount: 2') }, { file: 'session-two/intro.md', lineText: 'count: 2', message: 'unknown key "count"' });
+  fails({ 'session-two/lists/pair.md': 'random: true\nprompt: זוג\n\n### אחד\nid: one\n' }, { file: 'session-two/lists/pair.md', lineText: 'random: true', message: 'unknown key "random"' });
+});
+
+test('coverage: a custom background covered by one character\'s own steps is accepted; uncovered, it fails', () => {
+  const s1Dir = path.join(CUSTOM, 'session-one');
+  const gaps = (root) => coverageGaps(loadFrom(root), s1Dir);
+  // basic has no shared step for bg_mystic, a covers it itself: only the shared noble/sage/scribe/_else matter
+  assert.deepEqual(gaps(copyWith(CUSTOM)), []);
+  // remove a's mystic steps: bg_mystic is covered by nobody
+  const root = copyWith(CUSTOM, {
+    [CA]: (s) => s.slice(0, s.indexOf('## choice: mystic_tools')) + s.slice(s.indexOf('## choice: trait')),
+  });
+  assert.deepEqual(gaps(root).sort(), ['a: no when: background = mystic', 'b: no when: background = mystic']);
+});
+
 // ---------------------------------------------------------------- real content
 
 const REAL_S1 = path.join(REAL, 'session-one');
@@ -313,18 +456,24 @@ test('real content: loadSessionTwo on content/session-one + content/session-two 
   for (const [id, t] of Object.entries(s1.terms)) assert.deepEqual(c.terms[id], t); // Session One terms are unchanged
 });
 
-// F8 and this check are the two places to relax when one character file holds several steps with the same
-// `when:` value (a custom background): `coverageGaps` already accepts any step in the flow.
-function coverageGaps(content) {
-  const s1 = loadContent(REAL_S1);
-  const wanted = new Set(Object.keys(s1.terms).filter((id) => id.startsWith('bg_')).map((id) => id.slice(3)));
+// Every Session One background option and every bg_* term (Session One's or Session Two's) needs a
+// `when: background = <id>` step. A custom background (its steps live in one character's file, e.g.
+// Vilhelm's mharoti_scholar_criminal) is covered by those steps alone: an id that some characters cover
+// and others do not is a custom one and is not required of the rest.
+function coverageGaps(content, s1Dir = REAL_S1) {
+  const s1 = loadContent(s1Dir);
+  const wanted = new Set(Object.keys(content.terms).filter((id) => id.startsWith('bg_')).map((id) => id.slice(3)));
   for (const c of s1.characters)
     for (const o of c.steps.find((s) => s.id === 'background')?.options || []) wanted.add(o.id);
+  const covers = (c, id) => c.steps.some((s) => s.when?.step === 'background' && s.when.value === id);
   const gaps = [];
+  for (const id of wanted) {
+    const covering = content.characters.filter((c) => covers(c, id));
+    const custom = covering.length > 0 && covering.length < content.characters.length;
+    if (!custom) for (const c of content.characters) if (!covers(c, id)) gaps.push(`${c.id}: no when: background = ${id}`);
+  }
   for (const c of content.characters) {
-    const whens = c.steps.filter((s) => s.when?.step === 'background');
-    for (const id of wanted) if (!whens.some((s) => s.when.value === id)) gaps.push(`${c.id}: no when: background = ${id}`);
-    const elses = whens.filter((s) => s.when.value === '_else');
+    const elses = c.steps.filter((s) => s.when?.step === 'background' && s.when.value === '_else');
     if (elses.length !== 1) gaps.push(`${c.id}: ${elses.length} steps with when: background = _else (need exactly 1)`);
   }
   return gaps;
@@ -349,9 +498,22 @@ test('coverage mutation: deleting details_soldier from a copy fails the coverage
   assert.ok(gaps.length >= 5 && gaps.every((g) => g.endsWith('when: background = soldier')), gaps.join('\n'));
 });
 
-test('coverage mutation: a second _else step fails the coverage check', () => {
+test('loader mutation: a second _else step fails the load (F8), before the coverage check runs', () => {
   const root = copyWith(REAL, { 'session-two/steps/background-details.md': (s) => s + '\n## text: details_extra\nwhen: background = _else\nprompt: x\n' });
-  assert.throws(() => loadFrom(root), /both have "when: background = _else"/); // F8 reports it first
+  assert.throws(() => loadFrom(root), /both have "when: background = _else"/);
+});
+
+test('coverage mutation: deleting details_other leaves every character without an _else step', () => {
+  const root = copyWith(REAL, {
+    'session-two/steps/background-details.md': (s) => {
+      const a = s.indexOf('## text: details_other');
+      assert.ok(a > 0, 'details_other found');
+      const b = s.indexOf('\n## ', a + 1);
+      return s.slice(0, a) + (b === -1 ? '' : s.slice(b + 1));
+    },
+  });
+  const gaps = coverageGaps(loadFrom(root));
+  assert.ok(gaps.length >= 5 && gaps.every((g) => g.includes('0 steps with when: background = _else')), gaps.join('\n'));
 });
 
 test('real content: each character\'s subclass step has exactly its four 2024 PHB option ids (D10)', () => {

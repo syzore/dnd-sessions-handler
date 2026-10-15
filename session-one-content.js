@@ -12,7 +12,7 @@ import path from 'node:path';
 export class ContentError extends Error {}
 
 const STEP_TYPES = ['info', 'choice', 'text'];
-const BOOL = new Set(['multi', 'optional', 'other']);
+const BOOL = new Set(['multi', 'optional', 'other', 'random']); // 'random' only parses when ext.stepKeys allows it
 const STEP_KEYS = new Set(['title', 'prompt', 'hint', 'multi', 'optional', 'other', 'use', 'link']);
 const OPTION_KEYS = new Set(['id', 'subtitle', 'term']);
 export const FRONT_KEYS = { id: 'id', name: 'name', class: 'cls', icon: 'icon', order: 'order' };
@@ -174,8 +174,10 @@ export function parseTermFile(text, rel, key, withSrc) {
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
 // terms: Map of id -> term, for option "term:" (D4).
 // ext (Session Two only; Session One passes none and keeps its grammar and errors):
-//   { frontKeys: { <key>: <field> }, frontRequired: [<field>], stepKeys: [<extra step keys>], shared: bool }.
-//   An extra step key "from", "when" or "context" is parsed here and resolved by session-two-content.js.
+//   { frontKeys: { <key>: <field> }, frontRequired: [<field>], stepKeys: [<extra step keys>], optionKeys: [<extra option keys>], shared: bool }.
+//   An extra step key (from, when, context, count, random) or option key (when) is parsed here and
+//   resolved by session-two-content.js. An option "when:" becomes option.when = { step, value } and
+//   option.whenLine = <line>; the caller deletes whenLine.
 // Returns { front, frontLines, steps, at, lines, allowed }; at[stepId] = { heading, <extra key>: line }.
 export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext } = {}) {
   const fail = (n, msg) => {
@@ -189,6 +191,13 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
   const frontKeys = ext?.frontKeys ?? FRONT_KEYS;
   const frontRequired = ext?.frontRequired ?? ['id', 'name', 'cls'];
   const stepKeys = ext ? new Set([...STEP_KEYS, ...ext.stepKeys]) : STEP_KEYS;
+  const optionKeys = ext?.optionKeys ? new Set([...OPTION_KEYS, ...ext.optionKeys]) : OPTION_KEYS;
+  // "when: <step id> = <option id | _else>" -> { step, value }
+  const parseWhen = (n, v) => {
+    const w = v.match(/^([a-z0-9_]+)\s*=\s*([a-z0-9_]+)$/);
+    if (!w) fail(n, `"when: ${v}" is "when: <step id> = <option id>" or "when: <step id> = _else"`);
+    return { step: w[1], value: w[2] };
+  };
   const front = {};
   const frontLines = {};
   const at = {};
@@ -365,10 +374,10 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         at[step.id][m[1]] = n;
         if (m[1] === 'from' && v !== 'session-one') fail(n, `"from: ${v}": the only source is "session-one"`);
         if (m[1] === 'context' && !REF_ID.test(v)) fail(n, `"context: ${v}": a step id is Latin lowercase letters, digits and _`);
-        if (m[1] === 'when') {
-          const w = v.match(/^([a-z0-9_]+)\s*=\s*([a-z0-9_]+)$/);
-          if (!w) fail(n, `"when: ${v}" is "when: <step id> = <option id>" or "when: <step id> = _else"`);
-          v = { step: w[1], value: w[2] };
+        if (m[1] === 'when') v = parseWhen(n, v);
+        if (m[1] === 'count') {
+          if (!/^\d+$/.test(v)) fail(n, `"count: ${v}": count is a whole number`);
+          v = Number(v);
         }
       }
       if (REF_STEP_KEYS.has(m[1])) allowed.add(n);
@@ -403,10 +412,11 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     // option body: id:/subtitle:/term: lines first, then the description paragraph(s)
     const o = section;
     const m = !para && !o.paras.length && l.match(KEY_LINE);
-    if (m && OPTION_KEYS.has(m[1])) {
+    if (m && optionKeys.has(m[1])) {
       if (m[1] !== 'subtitle') noRef(n, l);
       if (o[m[1]] !== undefined) fail(n, `"${m[1]}:" appears twice in this option`);
       o[m[1]] = m[2].trim();
+      if (m[1] === 'when') (o.whenLine = n, (o.when = parseWhen(n, o.when)));
       if (m[1] === 'subtitle') (allowed.add(n), withSrc && (o.src.subtitle = { file: key, line: n }));
       if (m[1] === 'id' && !/^[a-z0-9_]+$/.test(o.id)) fail(n, 'an option id is Latin lowercase letters, digits and _');
       if (m[1] === 'term') {
