@@ -28,7 +28,7 @@ export { ContentError };
 const FRONT = { ...FRONT_KEYS, background: 'background' }; // D3: "background:" is the DM override
 const STEP_KEYS = ['from', 'when', 'context', 'count', 'random']; // D4, D14
 const OPTION_KEYS = ['when']; // D14
-const EXT = { frontKeys: FRONT, frontRequired: ['id'], stepKeys: STEP_KEYS, optionKeys: OPTION_KEYS, sharedMarker: true };
+const EXT = { frontKeys: FRONT, frontRequired: ['id'], stepKeys: STEP_KEYS, optionKeys: OPTION_KEYS, sharedMarker: true, lead: true };
 const EXT_SHARED = { stepKeys: STEP_KEYS, optionKeys: OPTION_KEYS, shared: true };
 const EXT_INTRO = { stepKeys: [] }; // the intro is plain Session One grammar
 

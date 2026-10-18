@@ -193,6 +193,10 @@ Every player receives every shared step and every character's non-secret steps. 
 
 A character's own info step (no `from:`) may hold a `### secret` and an `image:` inside it, exactly as in Session One: only that character's player (and the DM) receive them.
 
+שורה `lead: <משפט>` בתוך `### secret` של שלב כזה מחליפה את הכותרת "🤫 מה רק אתה יודע" במשפט הפתיחה. הוא נשמר כ-`secretLead`, מוצג כפסקת סיפור (לא ככותרת), ורק השחקן של הדמות (וה-DM) מקבלים אותו. שורה ריקה, שורה שנייה באותו סעיף, או `lead:` בתוך `### known` הן טעות. בסשן ראשון אין את המפתח, והשורה נכשלת כמו כל שורת לור בלי `- `. שלב `vision_end` של גריי בלי `lead:` נשאר עם הכותרת הרגילה.
+
+A `lead: <sentence>` line inside that step's `### secret` replaces the "🤫 מה רק אתה יודע" heading with the sentence. It is stored as `secretLead`, shown as narration (not a heading), and only that character's player (and the DM) receive it. An empty line, a second `lead:` in the same section, or a `lead:` under `### known` is an error. Session One has no such key, so the line fails like any lore line that does not start with `- `. Grey's `vision_end` step has no `lead:`, so it keeps the default heading.
+
 `intro.md` נשלח לכל שחקן בשלמותו, כמו `world.md`, ולכן יש בו רק `### known`: `### secret` בו הוא טעות.
 
 Every player receives all of `intro.md`, like `world.md`, so it holds `### known` only: a `### secret` there is an error.

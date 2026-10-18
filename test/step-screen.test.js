@@ -173,6 +173,16 @@ test('markup: an info step image renders first in the lore, centered figure with
   assert.ok(both.includes('/img/b.png'));
 });
 
+test('markup: secretLead replaces the secret heading with narration; without it the heading stays', async () => {
+  const { loreHtml } = await loadScreen();
+  const lead = loreHtml({ secret: [{ text: 'סוד' }], secretLead: 'אתה מתיישב.' });
+  assert.ok(lead.includes('<p class="lore-lead">אתה מתיישב.</p>'), lead);
+  assert.ok(!lead.includes('מה רק אתה יודע') && !lead.includes('<h2 class="lore-h">'), lead);
+  const plain = loreHtml({ secret: [{ text: 'סוד' }] });
+  assert.ok(plain.includes('<h2 class="lore-h">🤫 מה רק אתה יודע</h2>'), plain);
+  assert.ok(!plain.includes('lore-lead'));
+});
+
 test('markup: an info step without an image has no figure (unchanged markup)', async () => {
   const { loreHtml } = await loadScreen();
   const html = loreHtml({ known: [{ title: 't', text: 'k' }], secret: [{ text: 's' }] });
@@ -210,6 +220,14 @@ test('style: a heading item draws no divider before the next item; prose paragra
   const rule = (sel) => css.match(new RegExp(`(?:^|\\n)${sel.replace(/[.+*]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
   assert.match(rule('.lore .lore-head + .lore-item'), /border-top: 0/);
   assert.match(rule('.lore-item p + p'), /margin-top: \d+px/);
+});
+
+test('style: the secret lead-in is body text, not a heading', () => {
+  const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.lore-lead \{([^}]*)\}/)?.[1] ?? '';
+  assert.match(rule, /font-weight: 400/);
+  assert.match(rule, /font-size: 16px/);
+  assert.ok(!rule.includes('font-family: var(--serif)'));
 });
 
 test('style: the info image fits a phone (max-width 100%, at most 40vh, centered)', () => {

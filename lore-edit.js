@@ -129,7 +129,7 @@ const oneLine = (s) => s.replace(/\s*\n\s*/g, ' ').trim();
 const paragraphs = (s) => s.split(/\r?\n\s*\r?\n/).map(oneLine).filter(Boolean);
 
 // The last line (0-based) of the lore item whose bullet is at scan[i], as the parser reads it: lines
-// right below it (an unindented "- ", "#", "use:" or "image:" line ends it), and after blank lines
+// right below it (an unindented "- ", "#", "use:", "image:" or "lead:" line ends it), and after blank lines
 // any indented line (the item's next paragraph).
 function itemEnd(scan, i) {
   let end = i;
@@ -137,7 +137,7 @@ function itemEnd(scan, i) {
     const t = scan[j].trim();
     if (!t) continue;
     const below = j === end + 1;
-    if (/^\s/.test(scan[j]) || (below && !/^(- |#|use:|image:)/.test(t))) end = j;
+    if (/^\s/.test(scan[j]) || (below && !/^(- |#|use:|image:|lead:)/.test(t))) end = j;
     else break;
   }
   return end;

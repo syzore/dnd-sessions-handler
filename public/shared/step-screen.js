@@ -24,20 +24,23 @@ export function withInfo(o, card) {
 // [[refs]] never span a line (the parser checks each line), so each line goes through richText.
 const loreParas = (text) =>
   text ? text.split('\n\n').map((p) => `<p>${p.split('\n').map((ln) => richText(ln)).join('<br>')}</p>`).join('') : '';
-const loreSection = (items, cls, heading, pen) =>
+const loreSection = (items, cls, headHtml, pen) =>
   items?.length
-    ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => {
+    ? `<section class="lore ${cls}">${headHtml}${items.map((it) => {
         const pencil = pen ? pen(it) : '';
         return `
         <div class="lore-item${it.text ? '' : ' lore-head'}${pencil ? ' ed-host' : ''}">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}${loreParas(it.text)}${pencil}</div>`;
       }).join('')}</section>`
     : '';
+const sectionHead = (text) => `<h2 class="lore-h">${esc(text)}</h2>`;
+// secretLead (Session Two "lead:" under ### secret) replaces the secret heading with narration.
+const secretHead = (st, heading) => (st.secretLead ? `<p class="lore-lead">${richText(st.secretLead)}</p>` : sectionHead(heading));
 // The step's image, at the top: `secretImage` (from ### secret; contentFor sends it only to the
 // character's own player and the DM) wins over `image` (from ### known). The parser allows one.
 const loreImage = (img) =>
   img ? `<figure class="lore-img"><img src="${esc(img.src)}" alt="${esc(img.alt)}" decoding="async" referrerpolicy="no-referrer"></figure>` : '';
 export const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע', pen) =>
-  `<div class="lore-wrap">${loreImage(st.secretImage || st.image)}${loreSection(st.known, 'lore-known', 'מה כולם יודעים', pen)}${loreSection(st.secret, 'lore-secret', secretHeading, pen)}</div>`;
+  `<div class="lore-wrap">${loreImage(st.secretImage || st.image)}${loreSection(st.known, 'lore-known', sectionHead('מה כולם יודעים'), pen)}${loreSection(st.secret, 'lore-secret', secretHead(st, secretHeading), pen)}</div>`;
 
 // Back button (when `back`) and, when n > 0, progress bar and i+1/n count.
 export function topbar(i, n, back = true) {

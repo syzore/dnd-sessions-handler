@@ -196,6 +196,8 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .lore-img img { display: block; margin: 0 auto; max-width: 100%; max-height: 40vh; width: auto; height: auto; border-radius: var(--radius); }
 .lore { border-radius: var(--radius); padding: 18px 16px; border: 2px solid var(--line); background: var(--card); }
 .lore-h { margin: 0 0 10px; font-family: var(--serif); font-size: 20px; color: var(--gold); }
+/* secretLead: the sentence that replaces the secret heading. Body text, not a label. */
+.lore-lead { margin: 0 0 12px; font-size: 16px; font-weight: 400; line-height: 1.6; }
 .lore-item + .lore-item { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .lore-t { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
 .lore-item p { margin: 0; font-size: 16px; line-height: 1.6; opacity: .9; }

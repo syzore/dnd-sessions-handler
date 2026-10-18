@@ -231,6 +231,8 @@ export function parseTermFile(text, rel, key, withSrc) {
 //   An extra step key (from, when, context, count, random) or option key (when) is parsed here and
 //   resolved by session-two-content.js. An option "when:" becomes option.when = { step, value } and
 //   option.whenLine = <line>; the caller deletes whenLine.
+//   lead: with ext.lead, a "lead:" line under ### secret becomes step.secretLead (Session Two only;
+//   without the flag the line fails as a lore line, which is how Session One rejects it).
 // Returns { front, frontLines, steps, at, lines, allowed }; at[stepId] = { heading, <extra key>: line }.
 export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext, publicDir = PUBLIC_DIR } = {}) {
   const fail = (n, msg) => {
@@ -500,6 +502,18 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         item = null;
         continue;
       }
+      // "lead:" under ### secret replaces the default secret heading (step.secretLead). Session Two
+      // turns it on with ext.lead; Session One has no such key, so the line fails as a lore line.
+      if (ext?.lead && /^lead:/.test(l)) {
+        if (section !== 'secret') fail(n, '"lead:" goes under ### secret');
+        const v = l.slice(5).trim();
+        if (!v) fail(n, '"lead:" needs the lead-in text');
+        if (step.secretLead !== undefined) fail(n, '"lead:" appears twice in this ### secret section');
+        allowed.add(n);
+        step.secretLead = v;
+        item = null;
+        continue;
+      }
       allowed.add(n);
       if (l.startsWith('- ')) {
         const b = l.slice(2).trim();
@@ -639,7 +653,7 @@ function reachableTerms(terms, seen) {
 }
 
 // What one viewer may see: the DM gets everything; a player gets only their
-// own character's secret sections and secret images (none until they pick), and only the terms
+// own character's secret sections, secret images and secret leads (none until they pick), and only the terms
 // that their filtered content reaches (secret-safe, F14), plus `extraTerms` (ids the caller
 // vouches for, e.g. the viewer's own background) and what those reach.
 export function contentFor(content, { isAdmin, character, extraTerms = [] }) {
@@ -648,7 +662,7 @@ export function contentFor(content, { isAdmin, character, extraTerms = [] }) {
   const visible = {
     ...rest,
     characters: rest.characters.map((c) =>
-      c.id === character ? c : { ...c, steps: c.steps.map(({ secret, secretImage, ...st }) => st) },
+      c.id === character ? c : { ...c, steps: c.steps.map(({ secret, secretImage, secretLead, ...st }) => st) },
     ),
   };
   return { ...visible, terms: reachableTerms(terms || {}, collectRefs(visible, new Set(extraTerms))) };

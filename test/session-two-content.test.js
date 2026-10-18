@@ -203,6 +203,34 @@ test('own info step image: same rules and errors as Session One, with the Sessio
   });
 });
 
+// "lead: <text>" under ### secret replaces the secret section's default heading (Grey's vision).
+const LEAD_VISION = VISION.replace('### secret\n\n', '### secret\n\nlead: אתה מתיישב וממצמץ.\n');
+
+test('own info step: "lead:" under ### secret is step.secretLead, sent only to that character (and the DM)', () => {
+  const c = load({ [A]: (s) => s + LEAD_VISION });
+  const vision = step(c, 'a', 'vision');
+  assert.equal(vision.secretLead, 'אתה מתיישב וממצמץ.');
+  assert.equal(vision.secret.length, 1); // the lead is not a lore bullet
+  assert.equal(step(c, 'a', 'lore').secretLead, undefined); // other info steps keep the default heading
+  for (const viewer of [{ isAdmin: true }, { character: 'a' }]) assert.equal(step(contentFor(c, viewer), 'a', 'vision').secretLead, 'אתה מתיישב וממצמץ.');
+  for (const viewer of [{ character: 'b' }, { character: undefined }]) {
+    const seen = contentFor(c, viewer);
+    assert.ok(!JSON.stringify(seen).includes('וממצמץ'), JSON.stringify(viewer));
+    assert.deepEqual(Object.keys(step(seen, 'a', 'vision')).sort(), ['id', 'title', 'type']);
+  }
+});
+
+test('own info step "lead:": errors name the file and line', () => {
+  fails({ [A]: (s) => s + LEAD_VISION.replace('lead: אתה מתיישב וממצמץ.\n', 'lead:\n') }, { file: A, lineText: 'lead:', message: '"lead:" needs the lead-in text' });
+  fails({ [A]: (s) => s + LEAD_VISION.replace('lead: אתה', 'lead: א\nlead: אתה') }, { file: A, lineText: 'lead: אתה', message: '"lead:" appears twice in this ### secret section' });
+  fails({ [A]: (s) => s + '\n## info: seen\n\n### known\n\nlead: גלוי\n\n- דבר.\n' }, { file: A, lineText: 'lead:', message: '"lead:" goes under ### secret' });
+});
+
+test('"lead:" is Session Two only: Session One rejects it', () => {
+  const root = copyWith(BASIC, { 'session-one/characters/a.md': replace('### secret\n', '### secret\n\nlead: פתיח\n') });
+  assert.throws(() => loadContent(path.join(root, 'session-one')), (e) => e instanceof ContentError && /characters\/a\.md line \d+: lore lines start with "- "/.test(e.message));
+});
+
 // ------------------------------------------------- errors: terms, intro, ids
 
 test('terms: an id used by Session One and Session Two names both places', () => {
@@ -676,5 +704,20 @@ test('real content: Turator\'s characteristics are keyed off his background (D13
     }
     const free = visible(s, 'free text, no such id').length;
     assert.ok(free >= 3, `turator.${id} shows ${free} options for a free-text background`);
+  }
+});
+
+// Aviv's lead-in for Grey's vision, exactly as stored in characters/turator.md.
+const GREY_LEAD = 'עברתם את הגשר, אתם מוצאים מחנה ישן עם אוהלים רקובים ומדורה ישנה, אתה מרגיש חלש לרגע, אתה מתיישב וממצמץ קצת כשאתה פותח עיניים חברייך כבר לא שם.';
+
+test('real content: only Grey\'s vision has a secret lead-in, and only Grey\'s player (and the DM) receive it', () => {
+  const c = loadSessionTwo({ s1Dir: REAL_S1, s2Dir: REAL_S2 });
+  assert.equal(step(c, 'turator', 'vision').secretLead, GREY_LEAD);
+  const withLead = c.characters.flatMap((ch) => ch.steps.filter((s) => s.secretLead).map((s) => `${ch.id}.${s.id}`));
+  assert.deepEqual(withLead, ['turator.vision']); // vision_end and every other secret keep the default heading
+  for (const viewer of [{ isAdmin: true }, { character: 'turator' }]) assert.ok(JSON.stringify(contentFor(c, viewer)).includes(GREY_LEAD), JSON.stringify(viewer));
+  for (const viewer of [{ character: 'vilhelm' }, { character: 'deq' }, { character: undefined }]) {
+    const seen = JSON.stringify(contentFor(c, viewer));
+    assert.ok(!seen.includes(GREY_LEAD) && !seen.includes('וממצמץ'), JSON.stringify(viewer));
   }
 });
