@@ -161,7 +161,7 @@ test('real content: an override hides the background step; the details step foll
 });
 
 test('real content: Turator with no owner asks the background, free text only leads to details_other', () => {
-  assert.deepEqual(vis('turator').slice(0, 2), ['subclass', 'background']);
+  assert.deepEqual(vis('turator').slice(0, 4), ['vision', 'subclass', 'vision_end', 'background']);
   assert.deepEqual(vis('turator', {}, { background_other: 'x' }).filter((s) => s.startsWith('details_')), ['details_other']);
   assert.deepEqual(vis('turator', {}, { background: 'soldier' }).filter((s) => s.startsWith('details_')), ['details_soldier']);
   assert.ok(!vis('turator', { background: 'knight_of_the_order' }).includes('background'));
