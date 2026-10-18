@@ -231,8 +231,9 @@ export function parseTermFile(text, rel, key, withSrc) {
 //   An extra step key (from, when, context, count, random) or option key (when) is parsed here and
 //   resolved by session-two-content.js. An option "when:" becomes option.when = { step, value } and
 //   option.whenLine = <line>; the caller deletes whenLine.
-//   lead: with ext.lead, a "lead:" line under ### secret becomes step.secretLead (Session Two only;
-//   without the flag the line fails as a lore line, which is how Session One rejects it).
+//   lead: with ext.lead, a "lead:" line under ### secret becomes step.secretLead (Session Two only).
+//   Without the flag it is an ordinary lore line: right below a bullet it continues that bullet's
+//   text, anywhere else it fails ('lore lines start with "- "').
 // Returns { front, frontLines, steps, at, lines, allowed }; at[stepId] = { heading, <extra key>: line }.
 export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext, publicDir = PUBLIC_DIR } = {}) {
   const fail = (n, msg) => {
@@ -287,6 +288,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
   let sharedAt = null; // { line, index }: where "## shared" stands (index = steps before it)
   let marker = false; // the lines right after "## shared", up to the next heading
   let imageLine = 0; // the line of this info step's "image:", once seen
+  let leadLine = 0; // the line of this info step's "lead:" (ext.lead), once seen
 
   const endPara = () => {
     if (para && section && typeof section === 'object') section.paras.push(para.join(' '));
@@ -317,6 +319,9 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
       step[sec] = [...list.bullets.map((b) => ({ ...b })), ...step[sec]];
     }
     delete step.uses;
+    // loreSection draws nothing for an empty section, so a lead with no lore items would never show.
+    if (leadLine && !step.secret?.length)
+      fail(leadLine, '"lead:" needs at least one "- " lore line in its ### secret section (an empty section does not show)');
     if (kind === 'list' && step.bullets && step.options) fail(n, 'a list file holds either ### options or "- " lore bullets, not both');
     if (step.use) {
       if (step.type !== 'choice') fail(n, '"use:" at the top of a step only works on a choice step (in an info step, put it under ### known / ### secret)');
@@ -382,6 +387,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         fail(n, `a step heading is "## <type>: <id>", type one of ${STEP_TYPES.join(', ')}, id Latin letters, digits, _`);
       step = { id: m[2], type: m[1] };
       imageLine = 0;
+      leadLine = 0;
       at[m[2]] = { heading: n };
       stepLine = n;
       section = item = null;
@@ -503,7 +509,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         continue;
       }
       // "lead:" under ### secret replaces the default secret heading (step.secretLead). Session Two
-      // turns it on with ext.lead; Session One has no such key, so the line fails as a lore line.
+      // turns it on with ext.lead; without it the line is read as lore text (see the header comment).
       if (ext?.lead && /^lead:/.test(l)) {
         if (section !== 'secret') fail(n, '"lead:" goes under ### secret');
         const v = l.slice(5).trim();
@@ -511,6 +517,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         if (step.secretLead !== undefined) fail(n, '"lead:" appears twice in this ### secret section');
         allowed.add(n);
         step.secretLead = v;
+        leadLine = n;
         item = null;
         continue;
       }

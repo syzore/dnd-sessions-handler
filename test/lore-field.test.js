@@ -170,6 +170,17 @@ test('bullet: an indented image: line under a bullet is item text for parser and
   assert.deepEqual(stepOf(await content(s), 'lore').secret.map((x) => x.text), ['יחיד', 'אחרי.']);
 });
 
+// Session One has no "lead:" key (that is Session Two), so an unindented "lead:" right below a bullet
+// is that bullet's next line, for the parser and the editor's range alike.
+test('bullet: an unindented lead: line right below a bullet is item text, and an edit replaces it', async () => {
+  const s = await withSecret('- **ח** א\nlead: פתיח\n- אחרי.\n');
+  const lore = stepOf(await content(s), 'lore');
+  assert.equal(lore.secretLead, undefined);
+  assert.equal(lore.secret[0].text, 'א\nlead: פתיח');
+  await saveTouching(s, 'characters/a.md', { line: lore.secret[0].src.bullet.line, field: 'bullet', value: { title: 'ח', text: 'יחיד' } }, 22, 23);
+  assert.deepEqual(stepOf(await content(s), 'lore').secret.map((x) => x.text), ['יחיד', 'אחרי.']);
+});
+
 test('option: label, subtitle, description in one request, one version', async () => {
   const o = stepOf(await content(on), 'pick').options[0];
   const v0 = (await content(on)).edit.files['characters/a.md'];

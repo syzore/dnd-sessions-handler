@@ -226,6 +226,13 @@ test('own info step "lead:": errors name the file and line', () => {
   fails({ [A]: (s) => s + '\n## info: seen\n\n### known\n\nlead: גלוי\n\n- דבר.\n' }, { file: A, lineText: 'lead:', message: '"lead:" goes under ### secret' });
 });
 
+// The step screen draws the lead in the secret section, and an empty section renders nothing.
+test('own info step "lead:": a ### secret with a lead and no lore items is an error', () => {
+  const message = '"lead:" needs at least one "- " lore line in its ### secret section (an empty section does not show)';
+  fails({ [A]: (s) => s + LEAD_VISION.replace('- רק א רואה את החזון.\n', '') }, { file: A, lineText: 'lead: אתה', message });
+  fails({ [A]: (s) => s + '\n## info: seen\n\n### known\n\n- גלוי.\n\n### secret\n\nlead: לבד\n' }, { file: A, lineText: 'lead: לבד', message });
+});
+
 test('"lead:" is Session Two only: Session One rejects it', () => {
   const root = copyWith(BASIC, { 'session-one/characters/a.md': replace('### secret\n', '### secret\n\nlead: פתיח\n') });
   assert.throws(() => loadContent(path.join(root, 'session-one')), (e) => e instanceof ContentError && /characters\/a\.md line \d+: lore lines start with "- "/.test(e.message));
