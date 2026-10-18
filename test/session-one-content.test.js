@@ -302,7 +302,30 @@ test('an option "when:" is an unknown key in Session One (it is not turned into 
   const text = fs.readFileSync(path.join(BASIC, file), 'utf8').split('\n');
   const at = text.findIndex((l) => l.startsWith('### ') && l.includes(label)) + 1;
   fails({ [file]: (src) => src.split('\n').map((l, i) => (i + 1 === at ? `${l}\nwhen: background = sage` : l)).join('\n') },
-    `content/session-one/characters/a.md line ${at + 1}: unknown key "when" (allowed: id, subtitle, term)`);
+    `content/session-one/characters/a.md line ${at + 1}: unknown option key "when" (allowed: id, subtitle, term)`);
+});
+
+// characters/a.md: line 24 "### 🐍 [[veles]]", 25 "id: snake", 26 "subtitle: ...", 27 blank, 28 the description.
+test('an unknown or typo\'d option key is a content error, not description text', () => {
+  const A = 'content/session-one/characters/a.md';
+  fails({ 'characters/a.md': replace('id: snake\n', 'id: snake\nbogus: x\n') }, `${A} line 26: unknown option key "bogus" (allowed: id, subtitle, term)`);
+  fails({ 'characters/a.md': replace('subtitle: נחש', 'subtile: נחש') }, `${A} line 26: unknown option key "subtile" (allowed: id, subtitle, term)`);
+  // after the blank line, still before any description text
+  fails({ 'characters/a.md': replace('תיאור עם [[baal]].', 'trem: veles\n\nתיאור עם [[baal]].') }, `${A} line 28: unknown option key "trem" (allowed: id, subtitle, term)`);
+  // a lowercase Latin word then a colon reads as a key, even when Hebrew follows
+  fails({ 'characters/a.md': replace('תיאור עם [[baal]].', 'note: תיאור עם [[baal]].') }, `${A} line 28: unknown option key "note" (allowed: id, subtitle, term)`);
+});
+
+test('Hebrew prose with a colon, and any line after the description starts, stay description text', () => {
+  const desc = (edits) => load(edits).characters[0].steps[1].options[0].description;
+  assert.equal(desc({ 'characters/a.md': replace('תיאור עם [[baal]].', 'הערה: תיאור עם [[baal]].') }), 'הערה: תיאור עם [[baal]].');
+  // right under the keys, no blank line between
+  assert.equal(desc({ 'characters/a.md': replace('subtitle: נחש [[veles]]\n\n', 'subtitle: נחש [[veles]]\nשים לב: תיאור\n\n') }), 'שים לב: תיאור\n\nתיאור עם [[baal]].');
+  // not lowercase Latin: capitalised, digits, a space before the colon
+  for (const l of ['Note: x', 'DC: 15', '15: x', 'a b: x'])
+    assert.equal(desc({ 'characters/a.md': replace('תיאור עם [[baal]].', l) }), l);
+  // the gate: once a description paragraph has started, key-shaped lines are text
+  assert.equal(desc({ 'characters/a.md': replace('תיאור עם [[baal]].', 'תיאור עם [[baal]].\n\nbogus: x') }), 'תיאור עם [[baal]].\n\nbogus: x');
 });
 
 // ---------------------------------------------------------------- real content (A3)

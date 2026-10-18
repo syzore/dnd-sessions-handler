@@ -388,6 +388,12 @@ test('option when: F5 syntax, with the same message as a step when', () => {
     fails({ [CA]: replace('when: background = sage', `when: ${bad}`) }, { from: CUSTOM, file: CA, lineText: 'when:', message: 'is "when: <step id> = <option id>"' });
 });
 
+test('an unknown option key is a content error in Session Two too; "when:" stays legal there', () => {
+  fails({ [CA]: replace('id: wrench\n', 'id: wrench\nwen: background = sage\n') }, { from: CUSTOM, file: CA, lineText: 'wen: background = sage', message: 'unknown option key "wen" (allowed: id, subtitle, term, when)' });
+  fails({ [DETAILS]: replace('id: academy\n', 'id: academy\nbogus: x\n') }, { file: DETAILS, lineText: 'bogus: x', message: 'unknown option key "bogus" (allowed: id, subtitle, term, when)' });
+  assert.doesNotThrow(() => load({ [CA]: replace('id: wrench\n', 'id: wrench\nwhen: background = mystic\n') }, CUSTOM));
+});
+
 test('option when: "= _else" is not allowed on an option', () => {
   fails({ [CA]: replace('when: background = sage', 'when: background = _else') }, { from: CUSTOM, file: CA, lineText: 'when: background = _else', message: 'option "bookish": "when: background = _else": "= _else" is not allowed on an option' });
 });

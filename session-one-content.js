@@ -432,9 +432,11 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
 
     // option body: id:/subtitle:/term: lines first, then the description paragraph(s)
     const o = section;
+    // Only before the description starts: a key-shaped line inside it is text. KEY_LINE is
+    // lowercase Latin, so Hebrew prose with a colon is never a key.
     const m = !para && !o.paras.length && l.match(KEY_LINE);
-    if (m && m[1] === 'when' && !optionKeys.has('when')) fail(n, `unknown key "when" (allowed: ${[...optionKeys].join(', ')})`);
-    if (m && optionKeys.has(m[1])) {
+    if (m && !optionKeys.has(m[1])) fail(n, `unknown option key "${m[1]}" (allowed: ${[...optionKeys].join(', ')})`);
+    if (m) {
       if (m[1] !== 'subtitle') noRef(n, l);
       if (o[m[1]] !== undefined) fail(n, `"${m[1]}:" appears twice in this option`);
       o[m[1]] = m[2].trim();
