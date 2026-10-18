@@ -199,6 +199,10 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .lore-item + .lore-item { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .lore-t { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
 .lore-item p { margin: 0; font-size: 16px; line-height: 1.6; opacity: .9; }
+/* Prose items: paragraphs of one item are spaced, never divided. A heading item ("- **title**"
+   alone) leads into the next item with no divider between them. */
+.lore-item p + p { margin-top: 10px; }
+.lore .lore-head + .lore-item { margin-top: 0; padding-top: 0; border-top: 0; }
 .lore-secret {
   background: repeating-linear-gradient(135deg, #120d17 0 12px, #16101c 12px 24px);
   border: 2px dashed var(--danger);

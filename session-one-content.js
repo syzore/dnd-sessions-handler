@@ -257,6 +257,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
   let step = null; // the step being filled
   let section = null; // null | 'known' | 'secret' | an option object
   let item = null; // the lore bullet being filled
+  let gap = false; // a blank line came after `item`: an indented line next starts its next paragraph
   let para = null; // the description paragraph being filled (array of lines)
   let stepLine = 0;
   let sharedAt = null; // { line, index }: where "## shared" stands (index = steps before it)
@@ -306,7 +307,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     if (step.type === 'choice' && !step.options?.length && !step.bullets) fail(n, 'a choice step needs ### options (or "use: <list>")');
     if (step.type === 'info' && !step.known && !step.secret) fail(n, 'an info step needs a ### known or ### secret section');
     for (const it of [...(step.known || []), ...(step.secret || []), ...(step.bullets || [])]) {
-      if (!it.text) fail(it.line, 'this lore bullet has no text');
+      if (!it.text && !it.title) fail(it.line, 'this lore bullet has no text');
       delete it.line;
     }
     if (kind !== 'list' && step.type !== 'info' && !step.title && !step.prompt) fail(n, 'a question step needs "prompt:" (or "title:")');
@@ -360,6 +361,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
       at[m[2]] = { heading: n };
       stepLine = n;
       section = item = null;
+      gap = false;
       continue;
     }
     if (/^#( |$)/.test(raw)) continue; // a page title, for the reader only
@@ -372,6 +374,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     if (/^### /.test(raw)) {
       endPara();
       item = null;
+      gap = false;
       const h = raw.slice(4).trim();
       if (step.type === 'text') fail(n, 'a text step has no ### sections');
       if (ext?.shared && step.type === 'info') fail(n, 'a shared step is a choice or text step; it has no ### known / ### secret');
@@ -397,7 +400,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
 
     if (!l) {
       endPara();
-      item = null;
+      if (item) gap = true; // the item stays open for an indented next paragraph
       continue;
     }
 
@@ -440,8 +443,19 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
       continue;
     }
 
-    // info sections: "- **title** text" bullets; lines below a bullet continue it
+    // info sections: "- **title** text" bullets. "- **title**" alone is a heading item (no text).
+    // Lines right below a bullet continue it, each line break kept ("\n"); after a blank line, an
+    // indented line starts the item's next paragraph ("\n\n"). An indented line under an item is
+    // always its text, even when it starts with "- ", "use:" or "image:" (dialogue dashes).
     if (section === 'known' || section === 'secret' || section === 'bullets') {
+      if (item && /^\s/.test(raw)) {
+        allowed.add(n);
+        item.text = item.text ? `${item.text}${gap ? '\n\n' : '\n'}${l}` : l;
+        gap = false;
+        continue;
+      }
+      if (gap) item = null;
+      gap = false;
       if (section !== 'bullets' && /^use:/.test(l)) noRef(n, l);
       // "image:" in ### known -> step.image, in ### secret -> step.secretImage (contentFor drops it
       // with the secret). One per step; it renders at the top of the step.
@@ -465,10 +479,10 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
       if (l.startsWith('- ')) {
         const b = l.slice(2).trim();
         const m = b.match(/^\*\*(.+?)\*\*\s*(.*)$/);
-        item = m ? { line: n, title: m[1].trim(), text: m[2] } : { line: n, text: b };
+        item = m ? { line: n, title: m[1].trim(), ...(m[2] && { text: m[2] }) } : { line: n, text: b };
         if (withSrc) item.src = { bullet: { file: key, line: n } };
         step[section].push(item);
-      } else if (item) item.text = item.text ? `${item.text} ${l}` : l;
+      } else if (item) item.text = item.text ? `${item.text}\n${l}` : l;
       else fail(n, 'lore lines start with "- " (optionally "- **title** text")');
       continue;
     }

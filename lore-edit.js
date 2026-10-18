@@ -128,6 +128,21 @@ const STRUCTURE = 'השינוי משנה את מבנה הקובץ. ערכו או
 const oneLine = (s) => s.replace(/\s*\n\s*/g, ' ').trim();
 const paragraphs = (s) => s.split(/\r?\n\s*\r?\n/).map(oneLine).filter(Boolean);
 
+// The last line (0-based) of the lore item whose bullet is at scan[i], as the parser reads it: lines
+// right below it (an unindented "- ", "#", "use:" or "image:" line ends it), and after blank lines
+// any indented line (the item's next paragraph).
+function itemEnd(scan, i) {
+  let end = i;
+  for (let j = i + 1; j < scan.length; j++) {
+    const t = scan[j].trim();
+    if (!t) continue;
+    const below = j === end + 1;
+    if (/^\s/.test(scan[j]) || (below && !/^(- |#|use:|image:)/.test(t))) end = j;
+    else break;
+  }
+  return end;
+}
+
 // Plan one edit against the current lines: { start, end (0-based, inclusive), out: new lines, expect }.
 // Returns { error } for a 400. `expect` is the value the parser must report back (D4 step 7).
 function planEdit(lines, scan, { line, field, value }) {
@@ -141,13 +156,20 @@ function planEdit(lines, scan, { line, field, value }) {
   if (field === 'bullet') {
     if (!value || typeof value !== 'object' || typeof value.text !== 'string') return { error: NOT_FOUND };
     if (!at.trim().startsWith('- ')) return { error: NOT_FOUND };
-    const title = typeof value.title === 'string' ? value.title : '';
+    const title = (typeof value.title === 'string' ? value.title : '').trim();
     if (/[\r\n]/.test(title)) return { error: 'ערך בשורה אחת' };
-    const text = oneLine(value.text);
-    if (!text) return { error: 'שדה ריק: כדי למחוק, השתמשו בעורך הקובץ' };
-    while (end + 1 < lines.length && scan[end + 1].trim() && !/^(- |#|use:)/.test(scan[end + 1].trim())) end++;
-    out = [`- ${title.trim() ? `**${title.trim()}** ` : ''}${text}`];
-    expect = { title: title.trim(), text };
+    // The text keeps its shape: a line break stays one, a blank line starts a paragraph. Written
+    // back as the parser reads it: first line on the bullet, the rest indented two spaces, a blank
+    // line between paragraphs. A title with no text is a heading item ("- **title**").
+    const paras = value.text.split(/\r?\n\s*\r?\n/).map((p) => p.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)).filter((p) => p.length);
+    end = itemEnd(scan, i);
+    // F24: the text may not be emptied, except on an item that is already a heading.
+    const heading = end === i && /^- \*\*.+?\*\*$/.test(scan[i].trim());
+    if (!paras.length && (!title || !heading)) return { error: 'שדה ריק: כדי למחוק, השתמשו בעורך הקובץ' };
+    const [first = '', ...rest] = paras[0] || [];
+    out = [`- ${title ? `**${title}**${first ? ' ' : ''}` : ''}${first}`, ...rest.map((x) => `  ${x}`)];
+    for (const p of paras.slice(1)) out.push('', ...p.map((x) => `  ${x}`));
+    expect = { title, text: paras.map((p) => p.join('\n')).join('\n\n') };
   } else if (ONE_LINE.has(field) || MULTI.has(field)) {
     if (typeof value !== 'string') return { error: NOT_FOUND };
     if (ONE_LINE.has(field) && /[\r\n]/.test(value)) return { error: 'ערך בשורה אחת' };
@@ -184,7 +206,7 @@ const GET = {
   title: (x) => x.title,
   prompt: (x) => x.prompt,
   hint: (x) => x.hint,
-  bullet: (x) => ({ title: x.title ?? '', text: x.text }),
+  bullet: (x) => ({ title: x.title ?? '', text: x.text ?? '' }),
   label: (x) => x.label,
   subtitle: (x) => x.subtitle,
   description: (x) => x.description,

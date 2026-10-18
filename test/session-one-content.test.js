@@ -392,6 +392,50 @@ test('info image: contentFor drops a secret image for every other viewer, keeps 
   assert.equal(contentFor(c, { character: 'zz' }).characters[0].steps[0].secretImage, undefined);
 });
 
+// ---------------------------------------------------------------- lore items: headings and prose
+
+// a's ### secret (line 17 is "- סוד על [[baal|הבעל]].") replaced by `body`; returns a's secret items.
+const secretOf = (body, extra = {}) =>
+  load({ 'characters/a.md': replace('- סוד על [[baal|הבעל]].\n', body), ...extra }).characters[0].steps[0].secret;
+
+test('lore: a title-only bullet is a heading item { title }, with no text', () => {
+  assert.deepEqual(secretOf('- **ההתכנסות הראשונה**\n- סוד.\n'), [{ title: 'ההתכנסות הראשונה' }, { text: 'סוד.' }]);
+});
+
+test('lore: lines under a bullet keep their line break; a blank line + indented line is a new paragraph', () => {
+  const body = '- **החזון** שורה עם [[veles]].\n  שורה שנייה.\n\n  פסקה שנייה עם [[baal|הבעל]].\n  - מי שם?\n- אחר.\n';
+  assert.deepEqual(secretOf(body), [
+    { title: 'החזון', text: 'שורה עם [[veles]].\nשורה שנייה.\n\nפסקה שנייה עם [[baal|הבעל]].\n- מי שם?' },
+    { text: 'אחר.' },
+  ]);
+  // an unindented line right under a bullet continues it too (its line break is kept)
+  assert.deepEqual(secretOf('- א\nב\n'), [{ text: 'א\nב' }]);
+  // a heading followed by indented prose is a titled item
+  assert.deepEqual(secretOf('- **כותרת**\n  טקסט.\n'), [{ title: 'כותרת', text: 'טקסט.' }]);
+  // several blank lines between paragraphs are one paragraph break
+  assert.deepEqual(secretOf('- א\n\n\n  ב\n'), [{ text: 'א\n\nב' }]);
+});
+
+test('lore: after a blank line, an unindented non-bullet line is still an error; refs are checked on every line', () => {
+  fails({ 'characters/a.md': replace('- סוד על [[baal|הבעל]].\n', '- א\n\nב\n') }, 'content/session-one/characters/a.md line 19: lore lines start with "- " (optionally "- **title** text")');
+  fails(
+    { 'characters/a.md': replace('- סוד על [[baal|הבעל]].\n', '- א\n\n  ב [[nope]]\n') },
+    'content/session-one/characters/a.md line 19: [[nope]]: there is no term "nope" (terms/*.md)',
+  );
+});
+
+test('lore: a shared list may hold heading and prose bullets (use:)', () => {
+  const list = '- **פתיח**\n- **סיפור** שורה.\n  שורה.\n\n  פסקה.\n';
+  const secret = secretOf('use: story\n- סוד.\n', { 'lists/story.md': list });
+  assert.deepEqual(secret, [{ title: 'פתיח' }, { title: 'סיפור', text: 'שורה.\nשורה.\n\nפסקה.' }, { text: 'סוד.' }]);
+});
+
+test('lore: a prose item reaches its terms for the owner only, like any secret', () => {
+  const c = load({ 'characters/a.md': replace('- סוד על [[baal|הבעל]].\n', '- **ח**\n  א.\n\n  ב [[baal]].\n') });
+  assert.ok(contentFor(c, { isAdmin: false, character: 'a' }).characters[0].steps[0].secret[0].text.includes('[[baal]]'));
+  assert.equal(contentFor(c, { isAdmin: false, character: 'b' }).characters[0].steps[0].secret, undefined);
+});
+
 // ---------------------------------------------------------------- real content (A3)
 
 test('the real content/session-one loads with no content error', () => {

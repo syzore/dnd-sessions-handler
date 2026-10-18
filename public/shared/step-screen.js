@@ -19,12 +19,17 @@ export function withInfo(o, card) {
 
 // An info step's image and known/secret sections (player flow and DM compendium).
 // `pen` (lore view, edit mode only) turns an item into its pencil button, or '' for none.
+// An item's text: "\n\n" between paragraphs (one <p> each), "\n" a line break (<br>). A heading
+// item (title, no text) has no <p> and the class lore-head (no divider before the next item).
+// [[refs]] never span a line (the parser checks each line), so each line goes through richText.
+const loreParas = (text) =>
+  text ? text.split('\n\n').map((p) => `<p>${p.split('\n').map((ln) => richText(ln)).join('<br>')}</p>`).join('') : '';
 const loreSection = (items, cls, heading, pen) =>
   items?.length
     ? `<section class="lore ${cls}"><h2 class="lore-h">${esc(heading)}</h2>${items.map((it) => {
         const pencil = pen ? pen(it) : '';
         return `
-        <div class="lore-item${pencil ? ' ed-host' : ''}">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}<p>${richText(it.text)}</p>${pencil}</div>`;
+        <div class="lore-item${it.text ? '' : ' lore-head'}${pencil ? ' ed-host' : ''}">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}${loreParas(it.text)}${pencil}</div>`;
       }).join('')}</section>`
     : '';
 // The step's image, at the top: `secretImage` (from ### secret; contentFor sends it only to the

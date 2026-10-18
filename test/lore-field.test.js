@@ -87,9 +87,10 @@ test('step fields: title/prompt/hint, each key from its own file (F27)', async (
 test('bullet: own bullet, no-title bullet, and a shared list bullet changes both characters', async () => {
   const known = stepOf(await content(on), 'lore').known;
   const own = known.find((b) => b.title === 'ידוע');
-  // continuation line is part of the range (14-15); the comment line after it is not
+  // continuation line is part of the range (14-15); the comment line after it is not.
+  // A line break in the text stays one: the next line is written indented under the bullet.
   await saveTouching(on, 'characters/a.md', { line: own.src.bullet.line, field: 'bullet', value: { title: 'חדש', text: 'שורה\nאחת' } }, own.src.bullet.line, own.src.bullet.line + 1);
-  assert.match(read(on, 'characters/a.md'), /^- \*\*חדש\*\* שורה אחת\n<!-- הערה בין שדות -->$/m);
+  assert.match(read(on, 'characters/a.md'), /^- \*\*חדש\*\* שורה\n  אחת\n<!-- הערה בין שדות -->$/m);
   const shared = known.find((b) => b.title === 'משותף');
   assert.equal(shared.src.bullet.file, 'lists/shared.md');
   const r = await put(on, 'lists/shared.md', [{ line: 1, field: 'bullet', value: { title: 'משותף', text: 'טקסט מעודכן' } }]);
@@ -105,6 +106,45 @@ test('F24: bullet title may be cleared, bullet text may not', async () => {
   const r = await put(on, 'characters/a.md', [{ line: b.src.bullet.line, field: 'bullet', value: { title: 'a', text: '  ' } }]);
   assert.equal(r.status, 400);
   assert.equal((await put(on, 'characters/a.md', [{ line: b.src.bullet.line, field: 'prompt', value: '' }])).status, 400);
+});
+
+// a fresh server per test below: they rewrite a's ### secret ("- סוד." at line 22).
+async function withSecret(body) {
+  const s = await start({ LORE_EDIT: '1' });
+  const f = path.join(s.dir, 'characters/a.md');
+  const old = fs.readFileSync(f, 'utf8');
+  assert.ok(old.includes('\n- סוד.\n'));
+  fs.writeFileSync(f, old.replace('\n- סוד.\n', `\n${body}`));
+  return s;
+}
+const secretA = async (s) => stepOf(await content(s), 'lore').secret;
+
+test('bullet: a prose item (lines, paragraphs) round-trips; its whole range is replaced', async () => {
+  const s = await withSecret('- **ח** א\n  ב\n\n  ג\n- אחרי.\n');
+  const [it] = await secretA(s);
+  assert.equal(it.text, 'א\nב\n\nג');
+  // the editor sends back what it showed, edited: paragraphs and line breaks keep their shape
+  await saveTouching(s, 'characters/a.md', { line: it.src.bullet.line, field: 'bullet', value: { title: 'ח', text: 'א\nב2\n\n\nג\nד\n\nה' } }, 22, 25);
+  assert.ok(read(s, 'characters/a.md').includes('\n- **ח** א\n  ב2\n\n  ג\n  ד\n\n  ה\n- אחרי.\n'));
+  const after = await secretA(s);
+  assert.deepEqual(after.map(({ title, text }) => ({ title, text })), [{ title: 'ח', text: 'א\nב2\n\nג\nד\n\nה' }, { title: undefined, text: 'אחרי.' }]);
+  // a prose item edited down to one line leaves no stray paragraph behind
+  await saveTouching(s, 'characters/a.md', { line: it.src.bullet.line, field: 'bullet', value: { title: 'ח', text: 'יחיד' } }, 22, 28);
+  assert.deepEqual((await secretA(s)).map((x) => x.text), ['יחיד', 'אחרי.']);
+});
+
+test('bullet: a heading item edits its title; text may be added, and only a heading may have none (F24)', async () => {
+  const s = await withSecret('- **כותרת**\n- סוד.\n');
+  const [h, b] = await secretA(s);
+  assert.equal(h.text, undefined);
+  await saveTouching(s, 'characters/a.md', { line: h.src.bullet.line, field: 'bullet', value: { title: 'חדשה', text: '' } }, 22, 22);
+  assert.ok(read(s, 'characters/a.md').includes('\n- **חדשה**\n- סוד.\n'));
+  // a bullet with text cannot be emptied into a heading
+  assert.equal((await put(s, 'characters/a.md', [{ line: b.src.bullet.line, field: 'bullet', value: { title: 'x', text: '' } }])).status, 400);
+  // a heading needs its title
+  assert.equal((await put(s, 'characters/a.md', [{ line: h.src.bullet.line, field: 'bullet', value: { title: '', text: ' ' } }])).status, 400);
+  await saveTouching(s, 'characters/a.md', { line: h.src.bullet.line, field: 'bullet', value: { title: 'חדשה', text: 'גוף' } }, 22, 22);
+  assert.equal((await secretA(s))[0].text, 'גוף');
 });
 
 test('option: label, subtitle, description in one request, one version', async () => {

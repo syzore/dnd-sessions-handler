@@ -145,6 +145,28 @@ use: faith-secret
 - **המסדרים השבורים** סוד שרק לטוראטור יש.
 ```
 
+#### כותרת וטקסט ארוך / Headings and long prose
+
+- **כותרת לבד / A heading:** `- **כותרת**` בלי טקסט אחריה מוצגת ככותרת קטנה, בלי קו מפריד בינה לבין הפריט שאחריה. / `- **title**` with no text after it shows as a small heading, with no divider between it and the item after it.
+- **כמה שורות / Several lines:** שורה מתחת לפריט ממשיכה אותו, וירידת השורה נשמרת במסך. / A line right below an item continues it, and the line break shows on screen.
+- **כמה פסקאות / Several paragraphs:** שורה ריקה ואחריה שורה **מוזחת** (רווחים בתחילתה) מתחילה פסקה חדשה באותו פריט: טקסט רציף, בלי קו מפריד. שורה ריקה ואחריה שורה לא מוזחת היא טעות, אלא אם היא פריט חדש (`- `). / A blank line followed by an **indented** line (leading spaces) starts a new paragraph of the same item: continuous text, no divider. After a blank line, an unindented line must start a new item (`- `).
+- שורה מוזחת שייכת תמיד לפריט, גם כשהיא מתחילה ב-`- ` (מקף של דיאלוג). מזיחים את כל שורות ההמשך, כך הקובץ קריא. / An indented line always belongs to the item, even when it starts with `- ` (a dialogue dash). Indent every continuation line; the file reads better.
+- `[[הפניות]]` עובדות בכל שורה (כל הפניה בתוך שורה אחת), והאנגלית מופיעה באזכור הראשון כרגיל. / `[[references]]` work on every line (each one within a line), and the English shows on the first mention as usual.
+- עורך השדות (העיפרון) שומר את המבנה: ירידת שורה נשארת שורה מוזחת, שורה ריקה נשארת פסקה. את הטקסט של פריט רגיל אי אפשר לרוקן; כותרת לבד נשארת כותרת. / The field editor (pencil) keeps the shape: a line break stays an indented line, a blank line stays a paragraph. An item's text cannot be emptied; a heading stays a heading.
+
+```markdown
+### secret
+
+- **ההתכנסות הראשונה**
+- אתה עומד בתוך אולם גדול. האור נכנס מלמעלה.
+  מישהו קורא בשמך.
+
+  - מי שם? אתה שואל.
+  אין תשובה.
+- **התמונה האחרונה**
+- הכול נעלם.
+```
+
 #### תמונה בדף מידע / An info step image
 
 שורה `image: <תיאור התמונה> — <כתובת>` בתוך `### known` או `### secret` מציגה תמונה אחת בראש השלב, מתחת לכותרת, ממורכזת ולא גבוהה מ-40% מהמסך. התיאור חובה (טקסט חלופי לקוראי מסך), בלי `[[הפניות]]`. הכתובת היא `https://...` או קובץ שנמצא ב-`public/img/`, שנכתב `/img/<שם>.png` (גם `.jpg`, `.jpeg`, `.webp`, `.svg`). קובץ שלא קיים הוא טעות. תמונה אחת לשלב, ולא בשורות המפתח שמעל הסעיפים.

@@ -180,6 +180,38 @@ test('markup: an info step without an image has no figure (unchanged markup)', a
   assert.match(html, /^<div class="lore-wrap"><section class="lore lore-known">/);
 });
 
+// ---------------------------------------------------------------- lore items: headings and prose
+
+test('markup: a heading item is an h3.lore-t with no <p>; a one-line item is unchanged', async () => {
+  const { loreHtml } = await loadScreen();
+  const html = loreHtml({ secret: [{ title: 'ההתכנסות הראשונה' }, { title: 't', text: 'k' }, { text: 's' }] });
+  assert.ok(html.includes('<div class="lore-item lore-head"><h3 class="lore-t">ההתכנסות הראשונה</h3></div>'), html);
+  assert.ok(html.includes('<div class="lore-item"><h3 class="lore-t">t</h3><p>k</p></div>'), html);
+  assert.ok(html.includes('<div class="lore-item"><p>s</p></div>'), html);
+  assert.ok(!html.includes('<p></p>'));
+});
+
+test('markup: a prose item renders one <p> per paragraph and <br> per line; term refs work on every line', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'step-screen-'));
+  cpSync(new URL('../public/shared', import.meta.url), dir, { recursive: true });
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.js'))) writeFileSync(join(dir, f), readFileSync(join(dir, f), 'utf8').replaceAll("'/shared/", "'./"));
+  const { loreHtml } = await import(pathToFileURL(join(dir, 'step-screen.js')).href);
+  const { setTerms } = await import(pathToFileURL(join(dir, 'terms.js')).href);
+  setTerms({ veles: { id: 'veles', he: 'ולס', en: 'Veles', blurb: 'b', images: [], links: [] }, baal: { id: 'baal', he: 'בעל', en: 'Baal', images: [], links: [] } });
+  const html = loreHtml({ secret: [{ title: 'ח', text: 'א <b> [[veles]]\nב [[baal|הבעל]]\n\nג [[veles|וֶלֶס]]' }] });
+  assert.ok(html.includes(
+    '<h3 class="lore-t">ח</h3><p>א &lt;b&gt; <button type="button" class="term term-ref" aria-haspopup="dialog" data-term="veles">ולס</button><br>ב <span class="term-ref" data-term="baal">הבעל</span></p><p>ג <button type="button" class="term term-ref" aria-haspopup="dialog" data-term="veles">וֶלֶס</button></p>',
+  ), html);
+  setTerms({});
+});
+
+test('style: a heading item draws no divider before the next item; prose paragraphs are spaced, not divided', () => {
+  const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
+  const rule = (sel) => css.match(new RegExp(`(?:^|\\n)${sel.replace(/[.+*]/g, '\\$&')} \\{([^}]*)\\}`))?.[1] ?? '';
+  assert.match(rule('.lore .lore-head + .lore-item'), /border-top: 0/);
+  assert.match(rule('.lore-item p + p'), /margin-top: \d+px/);
+});
+
 test('style: the info image fits a phone (max-width 100%, at most 40vh, centered)', () => {
   const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
   const rule = css.match(/\.lore-img img \{([^}]*)\}/)?.[1] ?? '';
