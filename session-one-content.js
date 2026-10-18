@@ -67,6 +67,7 @@ export function fileExactly(root, src) {
       return false;
     }
     const e = ents.find((x) => x.name === seg);
+    // Dirent of a symlink is neither file nor folder, so a symlinked file or folder is rejected on purpose: a link could point outside public/.
     if (!e || (k === segs.length - 1 ? !e.isFile() : !e.isDirectory())) return false;
     dir = path.join(dir, seg);
   }
@@ -74,8 +75,8 @@ export function fileExactly(root, src) {
 }
 
 // One info-step "image:" value: "<alt text> [— or -] <https URL | /img/<file>>" -> { src, alt }.
-// A /img/ path must name a file in public/img/ (checked at load). fail(msg) throws with file and line.
-function parseImage(value, fail) {
+// A /img/ path must name a file in publicDir/img/ (checked at load). fail(msg) throws with file and line.
+function parseImage(value, fail, publicDir) {
   const m = String(value ?? '').trim().match(/^(.*?)\s*(\S+)$/);
   const alt = m ? m[1].replace(/\s*[—-]\s*$/, '').trim() : '';
   if (!m || !alt || !/^(?:[a-z][a-z0-9+.-]*:|\/|img\/)/i.test(m[2]))
@@ -84,7 +85,7 @@ function parseImage(value, fail) {
   const notImage = () => fail(`"${src}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg); the path is lowercase: Latin letters, digits, _ - .`);
   if (src.startsWith('/') && !src.startsWith('//')) {
     if (!LOCAL_IMAGE.test(src) || src.split('/').some((seg) => seg === '..')) notImage();
-    if (!fileExactly(PUBLIC_DIR, src)) fail(`"${src}": there is no file public${src} (spelled exactly, case included)`);
+    if (!fileExactly(publicDir, src)) fail(`"${src}": there is no file public${src} (spelled exactly, case included)`);
   } else {
     let u;
     try {
@@ -223,6 +224,7 @@ export function parseTermFile(text, rel, key, withSrc) {
 // Parse one md file. kind: 'character' | 'world' | 'list'.
 // lists: { name: { keys, options } } for `use:` (not needed when kind is 'list').
 // terms: Map of id -> term, for option "term:" (D4).
+// publicDir: the folder an info-step /img/ path must name a file in (default public/ next to this file).
 // ext (Session Two only; Session One passes none and keeps its grammar and errors):
 //   { frontKeys: { <key>: <field> }, frontRequired: [<field>], stepKeys: [<extra step keys>], optionKeys: [<extra option keys>], shared: bool, sharedMarker: bool }.
 //   sharedMarker: a "## shared" line (at most once) marks where the shared steps go; returned as sharedAt = { line, index }.
@@ -230,7 +232,7 @@ export function parseTermFile(text, rel, key, withSrc) {
 //   resolved by session-two-content.js. An option "when:" becomes option.when = { step, value } and
 //   option.whenLine = <line>; the caller deletes whenLine.
 // Returns { front, frontLines, steps, at, lines, allowed }; at[stepId] = { heading, <extra key>: line }.
-export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext } = {}) {
+export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key, src: withSrc, ext, publicDir = PUBLIC_DIR } = {}) {
   const fail = (n, msg) => {
     throw new ContentError(`${rel} line ${n}: ${msg}`);
   };
@@ -486,7 +488,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
         noRef(n, l);
         if (imageLine) fail(n, `an info step has one "image:" (the first is at line ${imageLine})`);
         imageLine = n;
-        step[section === 'secret' ? 'secretImage' : 'image'] = parseImage(l.slice(6), (msg) => fail(n, msg));
+        step[section === 'secret' ? 'secretImage' : 'image'] = parseImage(l.slice(6), (msg) => fail(n, msg), publicDir);
         item = null;
         continue;
       }
@@ -547,8 +549,8 @@ export const tidyStep = ({ id, type, ...rest }) => ({ id, type, ...rest, ...(res
 
 // Read and parse the whole content folder. Throws ContentError.
 // override: { file: 'terms/x.md', text } parses with that file's text replaced (or added),
-// without touching the disk.
-export function loadContent(dir, { override, src } = {}) {
+// without touching the disk. publicDir: where /img/ paths are checked (tests point it at a temp dir).
+export function loadContent(dir, { override, src, publicDir } = {}) {
   const isOver = (rel) => override && rel.split(path.sep).join('/') === override.file;
   const read = (d, rel) => (isOver(rel) ? override.text : readDisk(d, rel));
   const mdFiles = (d) => {
@@ -584,20 +586,20 @@ export function loadContent(dir, { override, src } = {}) {
   const lists = {};
   for (const f of mdFiles(path.join(dir, 'lists'))) {
     const rel = path.join('lists', f);
-    const { steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'list', {}, terms, { key: `lists/${f}`, src }));
+    const { steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'list', {}, terms, { key: `lists/${f}`, src, publicDir }));
     const { id, type, options, bullets, ...keys } = steps[0];
     lists[f.slice(0, -3)] = { keys, options, bullets };
   }
 
   if (!fs.existsSync(path.join(dir, 'world.md')) && !isOver('world.md')) throw new ContentError(`${relOf('world.md')}: file is missing`);
-  const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists, terms, { key: 'world.md', src }));
+  const world = checked(relOf('world.md'), parseFile(read(dir, 'world.md'), relOf('world.md'), 'world', lists, terms, { key: 'world.md', src, publicDir }));
   if (world.steps.length !== 1 || world.steps[0].type !== 'info')
     throw new ContentError(`${relOf('world.md')}: holds exactly one "## info: <id>" step`);
 
   const characters = [];
   for (const f of mdFiles(path.join(dir, 'characters'))) {
     const rel = path.join('characters', f);
-    const { front, steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'character', lists, terms, { key: `characters/${f}`, src }));
+    const { front, steps } = checked(relOf(rel), parseFile(read(dir, rel), relOf(rel), 'character', lists, terms, { key: `characters/${f}`, src, publicDir }));
     if (characters.some((c) => c.id === front.id)) throw new ContentError(`${relOf(rel)}: character id "${front.id}" is used by another file`);
     characters.push({ ...front, steps: steps.map(tidyStep) });
   }

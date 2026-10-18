@@ -383,6 +383,29 @@ test('fileExactly: every path segment must match a directory entry byte for byte
   assert.equal(fileExactly(root, '/img/Sub/a.png'), true);
   assert.equal(fileExactly(root, '/img/Sub'), false); // a folder is not a file
   assert.equal(fileExactly(root, '/img/none.png'), false);
+  // symlinks are rejected on purpose (a link could point outside public/)
+  fs.symlinkSync(path.join(root, 'img', 'ok.png'), path.join(root, 'img', 'link.png'));
+  fs.symlinkSync(path.join(root, 'img', 'Sub'), path.join(root, 'img', 'linkdir'));
+  assert.equal(fileExactly(root, '/img/link.png'), false);
+  assert.equal(fileExactly(root, '/img/linkdir/a.png'), false);
+});
+
+// The loader-level guard for the case only fileExactly catches: a lowercase /img/ path whose
+// file on disk has capitals. macOS existsSync says yes; Linux (production) serves a 404.
+test('info image: loadContent checks /img/ paths against the disk case, via publicDir', () => {
+  const publicDir = fs.mkdtempSync(path.join(os.tmpdir(), 's1-public-'));
+  fs.mkdirSync(path.join(publicDir, 'img', 'Sub'), { recursive: true });
+  fs.writeFileSync(path.join(publicDir, 'img', 'Shield.png'), '');
+  fs.writeFileSync(path.join(publicDir, 'img', 'Sub', 'a.png'), '');
+  fs.writeFileSync(path.join(publicDir, 'img', 'ok.png'), '');
+  const loadIn = (line) => loadContent(copyWith(BASIC, secretImage(line)), { publicDir });
+  assert.deepEqual(loadIn('image: מגן — /img/ok.png').characters[0].steps[0].secretImage, { src: '/img/ok.png', alt: 'מגן' });
+  for (const v of ['/img/shield.png', '/img/sub/a.png'])
+    assert.throws(
+      () => loadIn(`image: מגן — ${v}`),
+      (e) => e instanceof ContentError && e.message === `content/session-one/characters/a.md line 17: "${v}": there is no file public${v} (spelled exactly, case included)`,
+      v,
+    );
 });
 
 test('info image: alt text is required, the value is "<alt text> — <path or URL>"', () => {
