@@ -1,7 +1,7 @@
 // Client term helpers (public/shared/terms.js): pure string functions.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { setTerms, richText, plainText } from '../public/shared/terms.js';
+import { setTerms, richText, richParas, plainText } from '../public/shared/terms.js';
 
 setTerms({
   veles: { id: 'veles', he: 'ולס', en: 'Veles' },
@@ -54,4 +54,16 @@ test('the "|" text may hold a single "]" (D2), so no raw markup is left', () => 
   assert.equal(plainText('[[baal|a]b]] סוף'), 'a]b סוף');
   assert.equal(richText('[[baal|a]b]]'), '<span class="term-ref" data-term="baal">a]b</span>');
   assert.equal(plainText('[[baal|x]] ו[[veles|y]]'), 'x וy');
+});
+
+test('richParas: one paragraph is exactly richText (no wrapper)', () => {
+  for (const s of ['', 'א ו[[veles]]', 'שורה\nאחת']) assert.equal(richParas(s, { inert: true }), richText(s, { inert: true }));
+});
+
+test('richParas: blank lines split into block spans (valid inside a <button>), terms kept inert', () => {
+  assert.equal(
+    richParas('א [[veles]]\n\n<ב>\n \nג', { inert: true }),
+    '<span class="para">א <span class="term-ref term-inert" data-term="veles">ולס</span></span>' +
+      '<span class="para">&lt;ב&gt;</span><span class="para">ג</span>',
+  );
 });

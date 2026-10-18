@@ -150,3 +150,11 @@ test('wiring: a random draw announces the pick and honours prefers-reduced-motio
     delete globalThis.matchMedia;
   }
 });
+
+test('markup: a multi-paragraph option description renders one .para span per paragraph', async () => {
+  const { stepBodyHtml } = await loadScreen();
+  const st = { id: 'd', type: 'choice', options: [{ id: 'a', label: 'A', description: 'one\n\ntwo' }, { id: 'b', label: 'B', description: 'solo' }] };
+  const html = stepBodyHtml(st, {});
+  assert.match(html, /<span class="opt-desc"><span class="para">one<\/span><span class="para">two<\/span><\/span>/);
+  assert.match(html, /<span class="opt-desc">solo<\/span>/);
+});

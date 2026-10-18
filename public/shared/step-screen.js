@@ -4,7 +4,7 @@
 // markup never reaches the screen. addEnglishAll stays per screen, in the caller's `screen()`.
 import { icon } from '/shared/icons.js';
 import { esc } from '/shared/lib.js';
-import { richText, optionLabel } from '/shared/terms.js';
+import { richText, richParas, optionLabel } from '/shared/terms.js';
 import { termInfoButton, stepLinkHtml } from '/shared/term-popup.js';
 import { RANDOM_CARD_ID, countState, isLocked, canAdvance, drawRandom } from '/shared/step-rules.js';
 
@@ -86,7 +86,7 @@ export function stepBodyHtml(st, answers) {
             <span class="opt-text">
               <span class="opt-label">${optionLabel(o)}</span>
               ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
-              ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
+              ${o.description ? `<span class="opt-desc">${richParas(o.description, { inert: true })}</span>` : ''}
             </span>
             <span class="opt-check">${icon('check')}</span>
           </button>`)).join('')}${st.random && !st.multi ? randomCardHtml(cards) : ''}</div>${st.random && !st.multi ? '<p class="sr-only" id="random-live" aria-live="polite"></p>' : ''}${withOther ? `

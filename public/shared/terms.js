@@ -48,6 +48,16 @@ export function richText(str, { inert = false, self = null } = {}) {
   return out + esc(s.slice(last));
 }
 
+// richText over text that may hold paragraphs (blank-line separated, as the loaders join an
+// option description). One paragraph is plain richText; several become <span class="para">
+// (display: block in CSS), because the text sits inside an option <button> or a .opt-desc
+// <span>, where a <p> is invalid (phrasing content only).
+export function richParas(str, opts) {
+  const paras = String(str ?? '').split(/\n[ \t]*\n\s*/);
+  if (paras.length < 2) return richText(str, opts);
+  return paras.map((p) => `<span class="para">${richText(p, opts)}</span>`).join('');
+}
+
 // An option label (D4): plain text, because it sits inside the option <button>. With
 // `term:`, the whole label counts as a mention of that term for the English rule, so the
 // card reads "בהאמוט (Bahamut)". A `term:` the client does not have adds nothing (F7).

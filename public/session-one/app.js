@@ -1,6 +1,6 @@
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, savedName, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
-import { setTerms, allTerms, richText, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
+import { setTerms, allTerms, richText, richParas, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
 import { initTermPopup, termInfoButton, stepLinkHtml, CATEGORY_LABELS } from '/shared/term-popup.js';
 import { withInfo, loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
 
@@ -392,7 +392,7 @@ async function renderLore(code) {
       <span class="opt-text">
         <span class="opt-label">${optionLabel(o)}</span>
         ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
-        ${o.description ? `<span class="opt-desc">${richText(o.description, { inert: true })}</span>` : ''}
+        ${o.description ? `<span class="opt-desc">${richParas(o.description, { inert: true })}</span>` : ''}
       </span>
     </div>`);
   const card = (o) => {

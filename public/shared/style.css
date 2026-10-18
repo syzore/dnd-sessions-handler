@@ -175,6 +175,8 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .opt-card { align-items: flex-start; padding: 18px 16px; }
 .opt-emoji { font-size: 40px; line-height: 1; flex: none; width: 52px; text-align: center; }
 .opt-desc { font-size: 16px; line-height: 1.55; color: var(--text); opacity: .85; margin-top: 6px; }
+.opt-desc .para { display: block; }
+.opt-desc .para + .para { margin-top: 8px; }
 /* a card whose option has `term:`: the info button sits beside the option button (a sibling,
    never inside it, D4), over the card's left column under the check mark */
 .opt-wrap { position: relative; display: grid; }
