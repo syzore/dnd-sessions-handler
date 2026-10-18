@@ -172,6 +172,28 @@ test('content route: a player gets no other character\'s secret, the DM gets all
   assert.ok(!lore(stranger).includes(SECRET));
 });
 
+test('content route: an own info step\'s secret image reaches its player and the DM only; /img/ serves the file', async () => {
+  const g = await start();
+  const a = path.join(g.s2, 'characters', 'a.md');
+  fs.appendFileSync(a, '\n## info: vision\ntitle: החזון\n\n### secret\n\nimage: מגן — /img/turator-shield.png\n\n- חזון.\n');
+  await put(g, 2, 'pa', { character: 'a' });
+  await put(g, 2, 'pb', { character: 'b' });
+  const body = async (q) => {
+    const r = await fetch(`${g.base}/api/s2/content?code=${g.code}&${q}`);
+    assert.equal(r.status, 200);
+    return r.text();
+  };
+  for (const q of ['pid=pa', `key=${g.key}`]) assert.ok((await body(q)).includes('/img/turator-shield.png'), q);
+  for (const q of ['pid=pb', 'pid=nobody']) assert.ok(!(await body(q)).includes('turator-shield'), q);
+
+  const img = await fetch(`${g.base}/img/turator-shield.png`);
+  assert.equal(img.status, 200);
+  assert.equal(img.headers.get('content-type'), 'image/png');
+  const want = fs.readFileSync(path.join(HERE, '..', 'public', 'img', 'turator-shield.png'));
+  assert.ok(Buffer.from(await img.arrayBuffer()).equals(want));
+  assert.equal((await fetch(`${g.base}/img/no-such.png`)).status, 404);
+});
+
 test('content route: a custom-background term (bg_ override) goes to its own character and the DM only, with what it reaches', async () => {
   const g = await start();
   fs.writeFileSync(path.join(g.s2, 'terms', 'custom.md'), '### מותאם\nid: bg_custom\nen: Custom\ncategory: background\n\nרקע סודי של [[inner_ref]].\n\n### פנימי\nid: inner_ref\nen: Inner\ncategory: concept\n\nמשהו.\n');

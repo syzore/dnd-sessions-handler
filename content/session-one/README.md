@@ -145,6 +145,25 @@ use: faith-secret
 - **המסדרים השבורים** סוד שרק לטוראטור יש.
 ```
 
+#### תמונה בדף מידע / An info step image
+
+שורה `image: <תיאור התמונה> — <כתובת>` בתוך `### known` או `### secret` מציגה תמונה אחת בראש השלב, מתחת לכותרת, ממורכזת ולא גבוהה מ-40% מהמסך. התיאור חובה (טקסט חלופי לקוראי מסך), בלי `[[הפניות]]`. הכתובת היא `https://...` או קובץ שנמצא ב-`public/img/`, שנכתב `/img/<שם>.png` (גם `.jpg`, `.jpeg`, `.webp`, `.svg`). קובץ שלא קיים הוא טעות. תמונה אחת לשלב, ולא בשורות המפתח שמעל הסעיפים.
+
+An `image: <alt text> — <address>` line inside `### known` or `### secret` shows one image at the top of the step, under the title, centered and at most 40% of the screen height. The alt text is required (screen readers read it); no `[[references]]` in it. The address is `https://...` or a file in `public/img/`, written `/img/<name>.png` (also `.jpg`, `.jpeg`, `.webp`, `.svg`). A missing file is an error. One image per step, and not among the key lines above the sections.
+
+- **בתוך `### secret` התמונה סודית / Inside `### secret` the image is secret:** רק השחקן של הדמות (וה-DM) מקבלים אותה, כמו את הסוד. בתוך `### known` כולם מקבלים אותה / only the character's player (and the DM) receive it, like the secret. Inside `### known` everyone does.
+
+```markdown
+## info: vision
+title: החזון
+
+### secret
+
+image: מגן כחול עם ראש דרקון פלטינה — /img/turator-shield.png
+
+- **ההתכנסות הראשונה** אתה עומד בתוך אולם גדול.
+```
+
 `world.md` הוא שלב info אחד (`## info: common_lore`) שכל השחקנים רואים.
 `world.md` is a single info step (`## info: common_lore`) every player sees.
 

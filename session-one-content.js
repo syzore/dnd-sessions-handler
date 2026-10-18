@@ -8,6 +8,7 @@
 // renders them. Here they are only validated (syntax, allowed field, known id).
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export class ContentError extends Error {}
 
@@ -45,6 +46,35 @@ function checkUrl(url, fail) {
   }
   if (!u || u.protocol !== 'https:') fail(`"${url}" is not an https:// URL (only https:// links and images are allowed)`);
   return url;
+}
+
+// Where server.js serves /img/... from: public/ next to this file (both live at the repo root).
+const PUBLIC_DIR = fileURLToPath(new URL('./public', import.meta.url));
+// A repo-hosted image: /img/<name> (subfolders allowed), no dot-files, no "..", a known image type.
+const LOCAL_IMAGE = /^\/img\/(?:[a-z0-9_-][a-z0-9_.-]*\/)*[a-z0-9_-][a-z0-9_.-]*\.(?:png|jpe?g|webp|svg)$/i;
+
+// One info-step "image:" value: "<alt text> [— or -] <https URL | /img/<file>>" -> { src, alt }.
+// A /img/ path must name a file in public/img/ (checked at load). fail(msg) throws with file and line.
+function parseImage(value, fail) {
+  const m = String(value ?? '').trim().match(/^(.*?)\s*(\S+)$/);
+  const alt = m ? m[1].replace(/\s*[—-]\s*$/, '').trim() : '';
+  if (!m || !alt || !/^(?:[a-z][a-z0-9+.-]*:|\/|img\/)/i.test(m[2]))
+    fail('"image:" is "image: <alt text> — /img/<file> or https://..."; the alt text describes the picture');
+  const src = m[2];
+  const notImage = () => fail(`"${src}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg)`);
+  if (src.startsWith('/') && !src.startsWith('//')) {
+    if (!LOCAL_IMAGE.test(src) || src.split('/').some((seg) => seg === '..')) notImage();
+    if (!fs.existsSync(path.join(PUBLIC_DIR, src))) fail(`"${src}": there is no file public${src}`);
+  } else {
+    let u;
+    try {
+      u = new URL(src);
+    } catch {
+      u = null;
+    }
+    if (!u || u.protocol !== 'https:') notImage();
+  }
+  return { src, alt };
 }
 
 // One "link:" value: "[title] [— or -] https://URL" -> { title?, url }. The URL is the last token.
@@ -231,6 +261,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
   let stepLine = 0;
   let sharedAt = null; // { line, index }: where "## shared" stands (index = steps before it)
   let marker = false; // the lines right after "## shared", up to the next heading
+  let imageLine = 0; // the line of this info step's "image:", once seen
 
   const endPara = () => {
     if (para && section && typeof section === 'object') section.paras.push(para.join(' '));
@@ -325,6 +356,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
       if (!m || !STEP_TYPES.includes(m[1]))
         fail(n, `a step heading is "## <type>: <id>", type one of ${STEP_TYPES.join(', ')}, id Latin letters, digits, _`);
       step = { id: m[2], type: m[1] };
+      imageLine = 0;
       at[m[2]] = { heading: n };
       stepLine = n;
       section = item = null;
@@ -379,6 +411,7 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     if (section === null) {
       const m = l.match(KEY_LINE);
       if (!m) fail(n, `expected a "key: value" line (${[...stepKeys].join(', ')}) or a ### section`);
+      if (m[1] === 'image' && step.type === 'info') fail(n, '"image:" goes under ### known or ### secret (the image shows at the top of the step)');
       if (!stepKeys.has(m[1])) fail(n, `unknown key "${m[1]}" (allowed: ${[...stepKeys].join(', ')})`);
       if (!REF_STEP_KEYS.has(m[1])) noRef(n, l);
       let v = m[2].trim();
@@ -410,6 +443,16 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     // info sections: "- **title** text" bullets; lines below a bullet continue it
     if (section === 'known' || section === 'secret' || section === 'bullets') {
       if (section !== 'bullets' && /^use:/.test(l)) noRef(n, l);
+      // "image:" in ### known -> step.image, in ### secret -> step.secretImage (contentFor drops it
+      // with the secret). One per step; it renders at the top of the step.
+      if (section !== 'bullets' && /^image:/.test(l)) {
+        noRef(n, l);
+        if (imageLine) fail(n, `an info step has one "image:" (the first is at line ${imageLine})`);
+        imageLine = n;
+        step[section === 'secret' ? 'secretImage' : 'image'] = parseImage(l.slice(6), (msg) => fail(n, msg));
+        item = null;
+        continue;
+      }
       const u = section !== 'bullets' && l.match(/^use:\s*([a-z0-9_-]+)$/);
       if (u) {
         step.uses ||= {};
@@ -557,7 +600,7 @@ function reachableTerms(terms, seen) {
 }
 
 // What one viewer may see: the DM gets everything; a player gets only their
-// own character's secret sections (none until they pick), and only the terms
+// own character's secret sections and secret images (none until they pick), and only the terms
 // that their filtered content reaches (secret-safe, F14), plus `extraTerms` (ids the caller
 // vouches for, e.g. the viewer's own background) and what those reach.
 export function contentFor(content, { isAdmin, character, extraTerms = [] }) {
@@ -566,7 +609,7 @@ export function contentFor(content, { isAdmin, character, extraTerms = [] }) {
   const visible = {
     ...rest,
     characters: rest.characters.map((c) =>
-      c.id === character ? c : { ...c, steps: c.steps.map(({ secret, ...st }) => st) },
+      c.id === character ? c : { ...c, steps: c.steps.map(({ secret, secretImage, ...st }) => st) },
     ),
   };
   return { ...visible, terms: reachableTerms(terms || {}, collectRefs(visible, new Set(extraTerms))) };

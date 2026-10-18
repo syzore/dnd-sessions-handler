@@ -191,6 +191,9 @@ input:focus, textarea:focus { border-color: var(--gold); }
 .term-info:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .step-intro { margin-top: 10px; max-width: 560px; }
 .lore-wrap { display: grid; gap: 16px; max-width: 560px; }
+/* An info step's image (image: under ### known / ### secret): centered, phone-width, never taller than 40vh. */
+.lore-img { margin: 0; text-align: center; }
+.lore-img img { display: block; margin: 0 auto; max-width: 100%; max-height: 40vh; width: auto; height: auto; border-radius: var(--radius); }
 .lore { border-radius: var(--radius); padding: 18px 16px; border: 2px solid var(--line); background: var(--card); }
 .lore-h { margin: 0 0 10px; font-family: var(--serif); font-size: 20px; color: var(--gold); }
 .lore-item + .lore-item { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }

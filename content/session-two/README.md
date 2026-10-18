@@ -188,3 +188,7 @@ random: true
 כל שחקן מקבל את כל השלבים המשותפים ואת השלבים הגלויים של כל הדמויות. לכן לא כותבים בהם עובדה שמופיעה רק ב-`### secret` של דמות כלשהי. שלב `from:` שמעתיק שלב מידע מביא איתו גם את ה-`secret` שלו, ושחקן אחר לא רואה אותו (כמו בסשן ראשון).
 
 Every player receives every shared step and every character's non-secret steps. Do not use a fact that exists only in some character's `### secret` there. A `from:` step that copies an info step brings its `secret` along, and other players do not receive it (as in Session One).
+
+שלב מידע של דמות בקובץ שלה (בלי `from:`) יכול להחזיק `### secret` ו-`image:` בתוכו, בדיוק כמו בסשן ראשון: רק השחקן של הדמות (וה-DM) מקבלים אותם.
+
+A character's own info step (no `from:`) may hold a `### secret` and an `image:` inside it, exactly as in Session One: only that character's player (and the DM) receive them.

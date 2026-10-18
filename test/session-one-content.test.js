@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadContent, ContentError } from '../session-one-content.js';
+import { loadContent, ContentError, contentFor } from '../session-one-content.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASIC = path.join(HERE, 'fixtures', 'session-one', 'basic');
@@ -326,6 +326,70 @@ test('Hebrew prose with a colon, and any line after the description starts, stay
     assert.equal(desc({ 'characters/a.md': replace('תיאור עם [[baal]].', l) }), l);
   // the gate: once a description paragraph has started, key-shaped lines are text
   assert.equal(desc({ 'characters/a.md': replace('תיאור עם [[baal]].', 'תיאור עם [[baal]].\n\nbogus: x') }), 'תיאור עם [[baal]].\n\nbogus: x');
+});
+
+// ---------------------------------------------------------------- info step image: (under ### known / ### secret)
+
+// The real file the server serves at /img/turator-shield.png (public/img/).
+const SHIELD = '/img/turator-shield.png';
+// An "image:" line as the first line of a's ### secret (line 17) or world.md's ### known (line 8).
+const secretImage = (line) => ({ 'characters/a.md': replace('### secret\n', `### secret\n\n${line}\n`) });
+const knownImage = (line) => ({ 'world.md': replace('### known\n', `### known\n\n${line}\n`) });
+
+test('info image: a /img/ path under ### known is step.image { src, alt }; the bullets stay', () => {
+  const c = load(knownImage(`image: מגן כחול — ${SHIELD}`));
+  assert.deepEqual(c.commonLore.image, { src: SHIELD, alt: 'מגן כחול' });
+  assert.equal(c.commonLore.known.length, 1);
+  assert.equal(c.commonLore.secretImage, undefined);
+});
+
+test('info image: an https URL under ### secret is step.secretImage, with "-" as the separator too', () => {
+  const lore = load(secretImage('image: סמל - https://example.org/shield.png')).characters[0].steps[0];
+  assert.deepEqual(lore.secretImage, { src: 'https://example.org/shield.png', alt: 'סמל' });
+  assert.equal(lore.image, undefined);
+  assert.equal(lore.secret.length, 1);
+});
+
+test('info image: a section may hold only the image', () => {
+  const lore = load({ 'characters/a.md': replace('### secret\n\n- סוד על [[baal|הבעל]].\n', `### secret\n\nimage: מגן — ${SHIELD}\n`) }).characters[0].steps[0];
+  assert.deepEqual(lore.secret, []);
+  assert.equal(lore.secretImage.src, SHIELD);
+});
+
+test('info image: other schemes, non-/img/ paths and missing files are content errors with file and line', () => {
+  const bad = (v) => `content/session-one/characters/a.md line 17: "${v}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg)`;
+  for (const v of ['http://example.org/a.png', 'data:image/png;base64,AAAA', 'javascript:alert(1)', '/shared/style.css', 'img/turator-shield.png', '/img/../server.js', '/img/.hidden.png', '/img/x.gif', '//example.org/a.png'])
+    fails(secretImage(`image: מגן — ${v}`), bad(v));
+  fails(secretImage('image: מגן — /img/no-such-file.png'), 'content/session-one/characters/a.md line 17: "/img/no-such-file.png": there is no file public/img/no-such-file.png');
+});
+
+test('info image: alt text is required, the value is "<alt text> — <path or URL>"', () => {
+  const msg = 'content/session-one/characters/a.md line 17: "image:" is "image: <alt text> — /img/<file> or https://..."; the alt text describes the picture';
+  fails(secretImage(`image: ${SHIELD}`), msg);
+  fails(secretImage('image:'), msg);
+  fails(secretImage('image: רק טקסט'), msg);
+});
+
+test('info image: one per step, not at the step top, no [[refs]] in it', () => {
+  fails(
+    { 'characters/a.md': (s) => replace('### known\n', `### known\n\nimage: א — ${SHIELD}\n`)(s).replace('### secret\n', `### secret\n\nimage: ב — ${SHIELD}\n`) },
+    'content/session-one/characters/a.md line 19: an info step has one "image:" (the first is at line 13)',
+  );
+  fails({ 'characters/a.md': replace('title: הלור של [[baal]]\n', `title: הלור של [[baal]]\nimage: מגן — ${SHIELD}\n`) }, 'content/session-one/characters/a.md line 10: "image:" goes under ### known or ### secret (the image shows at the top of the step)');
+  fails(secretImage(`image: [[baal]] — ${SHIELD}`), /^content\/session-one\/characters\/a\.md line 17: a term reference \[\[\.\.\.\]\] is not allowed here/);
+  // a choice step keeps the plain unknown-key error
+  fails({ 'characters/a.md': replace('hint: רמז על [[veles]]\n', `hint: רמז על [[veles]]\nimage: מגן — ${SHIELD}\n`) }, /^content\/session-one\/characters\/a\.md line 23: unknown key "image"/);
+});
+
+test('info image: contentFor drops a secret image for every other viewer, keeps a known one for all', () => {
+  const c = load({ ...knownImage('image: גלוי — https://example.org/known.png'), ...secretImage('image: סודי — https://example.org/secret.png') });
+  const seen = (viewer) => JSON.stringify(contentFor(c, viewer));
+  for (const viewer of [{ isAdmin: true }, { character: 'a' }]) assert.ok(seen(viewer).includes('secret.png'), JSON.stringify(viewer));
+  for (const viewer of [{ character: 'zz' }, { character: undefined }]) {
+    assert.ok(!seen(viewer).includes('secret.png') && !seen(viewer).includes('סודי'), JSON.stringify(viewer));
+    assert.ok(seen(viewer).includes('known.png'), JSON.stringify(viewer));
+  }
+  assert.equal(contentFor(c, { character: 'zz' }).characters[0].steps[0].secretImage, undefined);
 });
 
 // ---------------------------------------------------------------- real content (A3)

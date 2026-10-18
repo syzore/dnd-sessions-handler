@@ -158,3 +158,30 @@ test('markup: a multi-paragraph option description renders one .para span per pa
   assert.match(html, /<span class="opt-desc"><span class="para">one<\/span><span class="para">two<\/span><\/span>/);
   assert.match(html, /<span class="opt-desc">solo<\/span>/);
 });
+
+// ---------------------------------------------------------------- info step image
+
+test('markup: an info step image renders first in the lore, centered figure with alt text', async () => {
+  const { stepBodyHtml, loreHtml } = await loadScreen();
+  const st = { id: 'v', type: 'info', secret: [{ text: 'סוד' }], secretImage: { src: '/img/turator-shield.png', alt: 'מגן "כחול"' } };
+  const html = stepBodyHtml(st, {});
+  assert.match(html, /^<div class="lore-wrap"><figure class="lore-img"><img src="\/img\/turator-shield\.png" alt="מגן &quot;כחול&quot;" decoding="async" referrerpolicy="no-referrer"><\/figure><section class="lore lore-secret">/);
+  // a known image renders the same way; the secret one wins when the viewer has both
+  assert.match(loreHtml({ known: [{ text: 'k' }], image: { src: 'https://example.org/a.png', alt: 'א' } }), /<figure class="lore-img"><img src="https:\/\/example\.org\/a\.png" alt="א"/);
+  const both = loreHtml({ known: [{ text: 'k' }], image: { src: '/img/a.png', alt: 'א' }, secretImage: { src: '/img/b.png', alt: 'ב' } });
+  assert.equal(both.match(/<img /g).length, 1);
+  assert.ok(both.includes('/img/b.png'));
+});
+
+test('markup: an info step without an image has no figure (unchanged markup)', async () => {
+  const { loreHtml } = await loadScreen();
+  const html = loreHtml({ known: [{ title: 't', text: 'k' }], secret: [{ text: 's' }] });
+  assert.ok(!html.includes('<img') && !html.includes('lore-img'));
+  assert.match(html, /^<div class="lore-wrap"><section class="lore lore-known">/);
+});
+
+test('style: the info image fits a phone (max-width 100%, at most 40vh, centered)', () => {
+  const css = readFileSync(new URL('../public/shared/style.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.lore-img img \{([^}]*)\}/)?.[1] ?? '';
+  for (const d of ['max-width: 100%', 'max-height: 40vh', 'margin: 0 auto', 'display: block']) assert.ok(rule.includes(d), `.lore-img img lacks "${d}"`);
+});

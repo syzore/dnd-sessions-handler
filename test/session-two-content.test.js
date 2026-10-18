@@ -179,6 +179,30 @@ test('contentFor works on the result: a player gets no other character\'s secret
   assert.ok(asB.terms.baal && asB.terms.sc_path); // terms the visible content reaches
 });
 
+// A character-own Session Two info step (not from:) with a ### secret that holds a /img/ image.
+const VISION = '\n## info: vision\ntitle: החזון\n\n### secret\n\nimage: מגן כחול עם ראש דרקון פלטינה — /img/turator-shield.png\n\n- רק א רואה את החזון.\n';
+
+test('own info step: ### secret and its image reach only that character (and the DM)', () => {
+  const c = load({ 'session-two/characters/a.md': (s) => s + VISION });
+  const vision = step(c, 'a', 'vision');
+  assert.deepEqual(vision.secretImage, { src: '/img/turator-shield.png', alt: 'מגן כחול עם ראש דרקון פלטינה' });
+  assert.equal(vision.secret[0].text, 'רק א רואה את החזון.');
+  for (const viewer of [{ isAdmin: true }, { character: 'a' }]) assert.ok(JSON.stringify(contentFor(c, viewer)).includes('turator-shield.png'));
+  for (const viewer of [{ character: 'b' }, { character: undefined }]) {
+    const seen = contentFor(c, viewer);
+    assert.ok(!JSON.stringify(seen).includes('turator-shield.png') && !JSON.stringify(seen).includes('רק א רואה'), JSON.stringify(viewer));
+    assert.deepEqual(Object.keys(step(seen, 'a', 'vision')).sort(), ['id', 'title', 'type']);
+  }
+});
+
+test('own info step image: same rules and errors as Session One, with the Session Two file and line', () => {
+  fails({ 'session-two/characters/a.md': (s) => s + VISION.replace('/img/turator-shield.png', '/img/missing.png') }, {
+    file: 'session-two/characters/a.md',
+    lineText: 'image:',
+    message: '"/img/missing.png": there is no file public/img/missing.png',
+  });
+});
+
 // ------------------------------------------------- errors: terms, intro, ids
 
 test('terms: an id used by Session One and Session Two names both places', () => {

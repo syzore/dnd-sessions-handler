@@ -17,7 +17,7 @@ export function withInfo(o, card) {
   return info ? `<div class="opt-wrap">${card}${info}</div>` : card;
 }
 
-// An info step's known/secret sections (player flow and DM compendium).
+// An info step's image and known/secret sections (player flow and DM compendium).
 // `pen` (lore view, edit mode only) turns an item into its pencil button, or '' for none.
 const loreSection = (items, cls, heading, pen) =>
   items?.length
@@ -27,8 +27,12 @@ const loreSection = (items, cls, heading, pen) =>
         <div class="lore-item${pencil ? ' ed-host' : ''}">${it.title ? `<h3 class="lore-t">${richText(it.title)}</h3>` : ''}<p>${richText(it.text)}</p>${pencil}</div>`;
       }).join('')}</section>`
     : '';
+// The step's image, at the top: `secretImage` (from ### secret; contentFor sends it only to the
+// character's own player and the DM) wins over `image` (from ### known). The parser allows one.
+const loreImage = (img) =>
+  img ? `<figure class="lore-img"><img src="${esc(img.src)}" alt="${esc(img.alt)}" decoding="async" referrerpolicy="no-referrer"></figure>` : '';
 export const loreHtml = (st, secretHeading = '🤫 מה רק אתה יודע', pen) =>
-  `<div class="lore-wrap">${loreSection(st.known, 'lore-known', 'מה כולם יודעים', pen)}${loreSection(st.secret, 'lore-secret', secretHeading, pen)}</div>`;
+  `<div class="lore-wrap">${loreImage(st.secretImage || st.image)}${loreSection(st.known, 'lore-known', 'מה כולם יודעים', pen)}${loreSection(st.secret, 'lore-secret', secretHeading, pen)}</div>`;
 
 // Back button (when `back`) and, when n > 0, progress bar and i+1/n count.
 export function topbar(i, n, back = true) {
