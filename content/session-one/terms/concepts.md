@@ -47,7 +47,7 @@ link: Wizard (D&D Beyond) — https://www.dndbeyond.com/classes/wizard
 עיצוב לחשים היא יכולת של [[evoker]]: הוא "חוצב" כיסים בטוחים בתוך הפיצוץ שלו, כך שבני בריתו שבאזור לא נפגעים כלל. כדור אש יכול ליפול על חוליית חיילים [[mharoti_castes|בעלי קשקשים]] בלי לחרוך את המורד שעומד ביניהם.
 
 <!-- sources: KP-origins (kobold settlers "improve the roads over the passes"); world.md -->
-<!-- uncertain: The name and the permit law are not found in canon; probably campaign invention. It may be confused with the Dragoncoil Mountains (הרי פיתול-הדרקון), whose name sounds similar. Consider renaming or adding a note. -->
+<!-- uncertain: The name and the permit law are not found in canon; probably campaign invention. It may be confused with the Dragoncoil Mountains (הרי פיתול הדרקון), whose name sounds similar. Consider renaming or adding a note. -->
 
 ### הסליל של הדרקון
 id: dragon_roads

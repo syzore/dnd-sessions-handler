@@ -118,7 +118,7 @@ aliases: מישור רותניה
 image: https://koboldpress.com/wp-content/uploads/2017/01/rothenianbg.jpg
 link: Khanate of the Khazzaki (Kobold Press) — https://koboldpress.com/welcome-to-midgard-khanate-of-the-khazzaki/
 
-מישורי רותניה הם ערבה עצומה בצפון-מזרח [[midgard]]: עשב בלי סוף, נהרות ותלי קבורה עתיקים. נוודים נודדים בה, החזאקי והקאריב, עם בני-ברית קנטאורים. [[baba_yaga]] אוהבת לשחק בהם זה נגד זה. בקצה הדרומי שלה המישור נעצר מול הרי פיתול-הדרקון והעיר [[kaanesh]].
+מישורי רותניה הם ערבה עצומה בצפון-מזרח [[midgard]]: עשב בלי סוף, נהרות ותלי קבורה עתיקים. נוודים נודדים בה, החזאקי והקאריב, עם בני-ברית קנטאורים. [[baba_yaga]] אוהבת לשחק בהם זה נגד זה. בקצה הדרומי שלה המישור נעצר מול הרי פיתול הדרקון והעיר [[kaanesh]].
 
 <!-- sources: KP-wasted ("tiefling sorcerers from withered Caelmarath infiltrated Cassilon and summoned powerful fiends"); WB-writeup ("cosmopolitan realm of giants and shorter races... burned down by Caelmarath's devilish patrons") -->
 <!-- uncertain: The content calls it a "city of craft and trade" tied to hill giants, and says giant ruins carry a "curse". Canon makes it a mixed giant and human magocracy destroyed in the Mage Wars. The hill-giant link is campaign framing. The image is a general Wasted West illustration. -->

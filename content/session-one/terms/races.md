@@ -25,7 +25,7 @@ image: https://static.wikia.nocookie.net/forgottenrealms/images/d/d1/Drakes_4e.j
 link: Lands of the Dragoncoil (Kobold Press) — https://koboldpress.com/welcome-to-midgard-lands-of-the-dragoncoil/
 link: Drake (Forgotten Realms Wiki) — https://forgottenrealms.fandom.com/wiki/Drake
 
-דרייקים הם קרובים קטנים יותר של ה[[dragon]]: חיות מכונפות, ערמומיות ומסוכנות. הם שורצים בהרי פיתול-הדרקון, ומהם קיבלו ההרים את שמם. בצבא האימפריה הם חלק ממעמד האצולה של בעלי הקשקשים, ובקרב הם כוח אווירי. "מאכילים בו את הדרייקים" הוא איום שכל [[jambuka]] מכיר.
+דרייקים הם קרובים קטנים יותר של ה[[dragon]]: חיות מכונפות, ערמומיות ומסוכנות. הם שורצים בהרי פיתול הדרקון, ומהם קיבלו ההרים את שמם. בצבא האימפריה הם חלק ממעמד האצולה של בעלי הקשקשים, ובקרב הם כוח אווירי. "מאכילים בו את הדרייקים" הוא איום שכל [[jambuka]] מכיר.
 
 <!-- sources: KP-origins ("for the first time one of the dragonborn"); WB-writeup (Dragonborn, called Dragonkin in the 2012 book, are Midgard's youngest race; Sekban/Edjet/Akinji castes) -->
 
