@@ -45,7 +45,7 @@ Aviv does not review this spec. These are decisions; engineers build to them and
 - **A7. Priority.** Override > carried Session One answer > Session Two answer. A carried answer wins over a Session Two answer even if the Session Two answer is newer (F11).
 - **A8. Carried answers are read live, never copied.** Every Session Two load reads the current Session One record. Session Two never writes Session One data.
 - **A9. Subclass step keeps the free-text box.** A player can write a non-PHB subclass. The step link goes to the class page on dnd2024.wikidot.com, which lists every subclass. Aviv handles a free-text subclass at the table.
-- **A10. The subclass step comes first, then background, then details.** Subclass is the main decision of the session and does not depend on the background.
+- **A10. The subclass step comes first, then background, then details.** Subclass is the main decision of the session and does not depend on the background. *Note (2026-10-18):* Turator's flow is vision (info) → subclass → vision_end (info) → background; the two info steps hold his secret trance vision and ask nothing.
 - **A11. Details steps are required.** A choice details step needs a pick or free text. `details_other` is a text step and needs text. Subclass is required. Nothing in Session Two is `optional:`.
 - **A12. Glossary terms added.** 19 subclass terms (`sc_<option id>`, category `class`, in `content/session-two/terms/subclasses.md`); Vilhelm's Evoker reuses the existing `evoker` term. 9 background terms for the 2024 PHB backgrounds no character offers (`bg_artisan`, `bg_entertainer`, `bg_farmer`, `bg_guard`, `bg_guide`, `bg_merchant`, `bg_noble`, `bg_sailor`, `bg_wayfarer`, in `content/session-two/terms/backgrounds-2024.md`). Details options get no terms; they reference existing world terms with `[[id]]`. The vocabulary now lives in `GLOSSARY.md`.
 - **A13. Session One content is not edited.** All new terms live in `content/session-two/terms/`. Session One parses and renders byte-for-byte as before.
@@ -206,7 +206,7 @@ Footer: share `/session-two/<CODE>`. No lore compendium link (A14). The Session 
 
 | File | Holds |
 | --- | --- |
-| `characters/*.md` | Front matter `id` only. `## choice: subclass` (4 options, each `term:`, subtitle = lore fit, description = one line; `context:` per D8; `link:` to the class page), then `## choice: background` / `from: session-one`. No overrides set. |
+| `characters/*.md` | Front matter `id` only. `## choice: subclass` (4 options, each `term:`, subtitle = lore fit, description = one line; `context:` per D8; `link:` to the class page), then `## choice: background` / `from: session-one`. No overrides set. Exception (2026-10-18): `turator.md` adds `## info: vision` before the subclass step and `## info: vision_end` after it, holding his secret trance vision. |
 | `steps/background-details.md` | 26 details steps, 4–6 options each, emoji + Hebrew label + one-line lore description; `details_other` text step. |
 | `terms/subclasses.md` | 19 `sc_*` terms: Hebrew name, `en`, `category: class`, a dnd2024.wikidot.com link (checked 2026-10-15, HTTP 200), blurb, "מקור: 2024 PHB". |
 | `terms/backgrounds-2024.md` | 9 `bg_*` terms in the shape of `content/session-one/terms/backgrounds.md`. |

@@ -626,8 +626,10 @@ test('real content: each character\'s subclass step has exactly its four 2024 PH
     const sub = step(c, id, 'subclass');
     assert.equal(sub.type, 'choice');
     assert.deepEqual(sub.options.map((o) => o.id), ids, id);
-    // A10 orders the questions; read-only info steps (Turator's vision) may sit around them.
-    const asked = char(c, id).steps.filter((s) => s.type !== 'info');
+    // A10: subclass first, then background. Turator's vision info steps wrap his subclass
+    // (exact order pinned in test/session-two-flow.test.js:164); no other character has info steps here.
+    const steps = char(c, id).steps;
+    const asked = id === 'turator' ? steps.filter((s) => s.type !== 'info') : steps;
     assert.equal(asked[0].id, 'subclass');
     assert.equal(asked[1].id, 'background');
     assert.equal(asked[1].carry, true);
