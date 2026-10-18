@@ -3,9 +3,9 @@
 // /shared/session-two-flow.js; the screens come from the shared step screen. The DM view is ticket 05.
 import { icon } from '/shared/icons.js';
 import { esc, api, playerId, adminKey, rememberAdminKey, copyButton } from '/shared/lib.js';
-import { setTerms, termOf, richText, plainText, addEnglishAll } from '/shared/terms.js';
-import { initTermPopup } from '/shared/term-popup.js';
-import { loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
+import { setTerms, termOf, richText, richParas, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
+import { initTermPopup, stepLinkHtml } from '/shared/term-popup.js';
+import { withInfo, loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
 import { visibleSteps, visibleOptions, screenAnswers, commitScreenAnswers, contextLine, dmRows } from '/shared/session-two-flow.js';
 
 let CHARACTERS = [];
@@ -53,6 +53,7 @@ async function route() {
   } catch (e) {
     return renderContentError(e);
   }
+  if (dm && parts[3] === 'lore') return renderLore(code);
   return dm ? renderDm(code) : start(code);
 }
 
@@ -153,6 +154,7 @@ async function renderDm(code) {
         ${rows || '<p class="muted">עוד אין שחקנים</p>'}
       </section>
       <div class="footer stack">
+        <a class="cta ghost" href="${base(code)}/dm/lore?key=${encodeURIComponent(key || '')}">${icon('eye')}<span>כל הלור והבחירות</span></a>
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button>
       </div>
     </main>`);
@@ -178,6 +180,105 @@ async function renderDm(code) {
     };
   });
   document.addEventListener('click', disarm, { once: true });
+}
+
+// ---------------------------------------------------------------- DM lore compendium (read-only)
+// Every character's steps and options, secrets included, plus the shared background details once.
+// The secrets come only from /api/s2/content with the DM key (contentFor strips them otherwise),
+// and the page renders only when /api/s2/:code confirms isAdmin. Modelled on Session One's renderLore.
+const isSharedDetails = (id) => id.startsWith('details_') && CHARACTERS.every((c) => c.steps.some((s) => s.id === id));
+const bgName = (id) => (id === '_else' ? 'כל רקע אחר / טקסט חופשי' : plainText(termOf(`bg_${id}`)?.he || id));
+// "when: step = value" as a short label, with the step's title and the option's label where known.
+function whenLabel(when, c) {
+  if (!when) return '';
+  if (when.step === 'background') return `רק כשהרקע: ${bgName(when.value)}`;
+  const target = c?.steps.find((s) => s.id === when.step);
+  const opt = target?.options?.find((o) => o.id === when.value);
+  return `רק כש-${plainText(target?.title || when.step)} = ${opt ? plainText(opt.label) : when.value}`;
+}
+const badge = (text) => `<span class="badge">${esc(text)}</span>`;
+
+async function renderLore(code) {
+  const key = adminKey(code);
+  let data;
+  try {
+    data = await api('GET', `/api/s2/${code}${key ? `?key=${encodeURIComponent(key)}` : ''}`);
+  } catch {
+    return renderNotFound();
+  }
+  if (!data.isAdmin) return lockScreen();
+  const card = (o, c) => withInfo(o, `
+    <div class="opt opt-card">
+      ${o.emoji ? `<span class="opt-emoji" aria-hidden="true">${esc(o.emoji)}</span>` : ''}
+      <span class="opt-text">
+        <span class="opt-label">${optionLabel(o)}</span>
+        ${o.subtitle ? `<span class="opt-sub">${richText(o.subtitle, { inert: true })}</span>` : ''}
+        ${o.description ? `<span class="opt-desc">${richParas(o.description, { inert: true })}</span>` : ''}
+        ${o.when ? `<span class="opt-sub">${badge(whenLabel(o.when, c))}</span>` : ''}
+      </span>
+    </div>`);
+  const stepHtml = (c, st, label = '') => {
+    const tags = [
+      st.type === 'info' ? 'מידע' : st.type === 'choice' ? (st.multi ? 'בחירה מרובה' : 'בחירה') : 'טקסט חופשי',
+      st.count && `בדיוק ${st.count}`,
+      st.random && 'אקראי 🎲',
+      st.other && '+ טקסט חופשי',
+      st.optional && 'אופציונלי',
+      st.carry && 'מסשן ראשון (מדולג אם כבר נענה)',
+    ].filter(Boolean);
+    const when = label || whenLabel(st.when, c);
+    const body =
+      st.type === 'info'
+        ? loreHtml(st, `🤫 הסודות של ${c?.name || ''}`)
+        : st.type === 'choice'
+        ? `<div class="grid one cards">${st.options.map((o) => card(o, c)).join('')}</div>`
+        : '';
+    return `
+      <section class="lore-step" data-term-scope>
+        <div class="kicker">${tags.map(badge).join(' ')} ${when ? badge(when) : ''} <span dir="ltr" class="muted">${esc(st.id)}</span></div>
+        <h3 class="q-title small">${richText(st.title || st.prompt || '')}</h3>
+        ${st.title && st.prompt ? `<p class="lead step-intro">${richText(st.prompt)}</p>` : ''}
+        ${st.hint ? `<p class="hint">${richText(st.hint)}</p>` : ''}
+        ${body}${stepLinkHtml(st.link)}
+      </section>`;
+  };
+  const chars = CHARACTERS.map((c) => {
+    const own = c.steps.filter((st) => !isSharedDetails(st.id));
+    const fixed = c.background
+      ? `<p class="hint">${badge('רקע קבוע')} ${esc(bgName(c.background))}: ה-DM קבע, השחקן לא נשאל על רקע.</p>`
+      : '';
+    return `
+    <details class="card dm-player">
+      <summary>${esc(c.name)} · ${esc(c.cls)}${c.background ? ` · ${esc(bgName(c.background))}` : ''}</summary>
+      ${fixed}
+      ${own.map((st) => stepHtml(c, st)).join('')}
+      <p class="hint">פרטי הרקע המשותפים: בקטע "פרטי רקע (לכל הדמויות)".</p>
+    </details>`;
+  }).join('');
+  const first = CHARACTERS[0];
+  const shared = first ? first.steps.filter((st) => isSharedDetails(st.id)) : [];
+  const sharedHtml = shared.length
+    ? `<details class="card dm-player">
+        <summary>פרטי רקע (לכל הדמויות, ${shared.length})</summary>
+        ${shared.map((st) => stepHtml(first, st, st.when?.step === 'background' ? `רקע: ${bgName(st.when.value)}` : '')).join('')}
+      </details>`
+    : '';
+  screen(`
+    <main class="wrap results">
+      <div class="kicker">${esc(data.title)}</div>
+      <h1 class="q-title">סשן שני: כל הלור והבחירות</h1>
+      <section class="dm">
+        <h2>${icon('eye')} רק ל-DM</h2>
+        <details class="card dm-player" data-term-scope>
+          <summary>${richText(INTRO.title, { inert: true })} (כל השחקנים)</summary>
+          ${INTRO.prompt ? `<p class="lead step-intro">${richText(INTRO.prompt)}</p>` : ''}
+          ${loreHtml(INTRO)}
+        </details>
+        ${chars}
+        ${sharedHtml}
+      </section>
+      <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key || '')}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
+    </main>`);
 }
 
 // ---------------------------------------------------------------- player flow
