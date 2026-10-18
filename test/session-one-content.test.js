@@ -218,6 +218,30 @@ test('option "term:" appears once per option', () => {
   fails({ 'lists/gods.md': replace('id: bahamut\n', 'id: bahamut\nterm: baal\nterm: veles\n') }, 'content/session-one/lists/gods.md line 7: "term:" appears twice in this option');
 });
 
+// ---------------------------------------------------------------- option ids from the label slug
+
+// Two id-less options, added to the end of step "pick" (before "## choice: god") or of lists/gods.md.
+const twoInPick = (a, b) => ({ 'characters/a.md': replace('## choice: god\n', `### ${a}\n\n### ${b}\n\n## choice: god\n`) });
+const twoInList = (a, b) => ({ 'lists/gods.md': (s) => `${s}\n### ${a}\n\n### ${b}\n` });
+
+test('options without id: get the label slug; two different labels both parse, in a step and in a list', () => {
+  const c = load({ ...twoInPick('Red [[veles|Dragon]]', 'Blue Dragon'), ...twoInList('🐉 Tiamat', 'Io') });
+  const [, pick, god] = c.characters[0].steps;
+  assert.deepEqual(pick.options.map((o) => o.id), ['snake', 'red_dragon', 'blue_dragon']);
+  assert.deepEqual(god.options.map((o) => o.id), ['bahamut', 'tiamat', 'io']);
+});
+
+test('two id-less options with the same slug are a duplicate id, in a step and in a list', () => {
+  fails(twoInPick('Red Dragon', 'red-dragon!'), 'content/session-one/characters/a.md line 32: option id "red_dragon" is used twice in this step');
+  fails(twoInPick('Snake', 'Other'), 'content/session-one/characters/a.md line 30: option id "snake" is used twice in this step');
+  fails(twoInList('Tiamat', 'TIAMAT'), 'content/session-one/lists/gods.md line 11: option id "tiamat" is used twice in this step');
+});
+
+test('an id-less option whose label has no Latin letters needs an id: line', () => {
+  fails(twoInPick('Red Dragon', 'דרקון'), 'content/session-one/characters/a.md: option "דרקון" in step "pick" needs an "id:" line (the label has no Latin letters)');
+  fails(twoInPick('דרקון', 'נחש'), 'content/session-one/characters/a.md: option "דרקון" in step "pick" needs an "id:" line (the label has no Latin letters)');
+});
+
 // ---------------------------------------------------------------- F5: URLs
 
 test('F5: image and link URLs must be https', () => {

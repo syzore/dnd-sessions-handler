@@ -281,6 +281,11 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     if (kind !== 'list' && step.type !== 'info' && !step.title && !step.prompt) fail(n, 'a question step needs "prompt:" (or "title:")');
     const ids = new Set();
     for (const o of step.options || []) {
+      // an option without id: gets the label's slug, which must not be empty
+      if (!o.id) {
+        o.id = slug(o.label);
+        if (!o.id) throw new ContentError(`${rel}: option "${o.label}" in step "${step.id}" needs an "id:" line (the label has no Latin letters)`);
+      }
       if (ids.has(o.id)) fail(o.line, `option id "${o.id}" is used twice in this step`);
       ids.add(o.id);
       delete o.line;
@@ -447,15 +452,6 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
     (para ||= []).push(l);
   }
   endStep();
-
-  // options without id: get the label's slug, which must not be empty
-  for (const st of steps)
-    for (const o of st.options || []) {
-      if (!o.id) {
-        o.id = slug(o.label);
-        if (!o.id) throw new ContentError(`${rel}: option "${o.label}" in step "${st.id}" needs an "id:" line (the label has no Latin letters)`);
-      }
-    }
   return { front, frontLines, steps, at, lines, allowed, sharedAt };
 }
 
