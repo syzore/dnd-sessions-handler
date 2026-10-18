@@ -85,13 +85,12 @@ link: הרשימה המלאה (באנגלית) — https://www.dndbeyond.com/bac
 
 ### choice: בחירה / pick from options
 
-כל אפשרות היא `### <אימוג'י> <שם>`. מתחתיה `id:` (חובה כשהשם בעברית), `subtitle:` אם רוצים, ואז שורה ריקה ופסקת התיאור. אפשרות עם תיאור מוצגת ככרטיס.
+כל אפשרות היא `### <אימוג'י> <שם>`. מתחתיה `id:` (חובה כשהשם בעברית), `subtitle:` אם רוצים, ואז שורה ריקה ופסקאות התיאור. אפשרות עם תיאור מוצגת ככרטיס. בלי `id:` המזהה נגזר מהאותיות הלטיניות שבשם, ושתי אפשרויות שהשם שלהן נותן אותו מזהה הן טעות.
 
-Each option is `### <emoji> <label>`. Under it: `id:` (required when the label is Hebrew), an optional `subtitle:`, then a blank line and the description paragraph(s). Options with a description render as cards. The emoji is optional.
+Each option is `### <emoji> <label>`. Under it: `id:` (required when the label is Hebrew), an optional `subtitle:`, then a blank line and the description paragraph(s). Options with a description render as cards. The emoji is optional. Without `id:`, the id is the label's slug (its Latin letters and digits, lowercased, other runs as `_`), so two options whose labels give the same slug (`Fire!` and `fire`) fail with `option id "fire" is used twice in this step`.
 
-- Give every option an `id:` line. Two options without one fail with `option id "undefined" is used twice`, even when the labels are Latin.
-- Under an option only `id:`, `subtitle:` and `term:` are keys. Any other `key: value` line silently becomes description text; only `when:` is rejected (it is Session Two grammar).
-- Write the description as one paragraph: a second paragraph currently renders run on, in the same block of text.
+- Before the description, a line of lowercase Latin letters and a colon (`key: value`) must be an option key: `id:`, `subtitle:`, `term:` (Session Two adds `when:`). Any other key fails with `unknown option key "<key>"`. So a description that starts with a lowercase Latin word and a colon (`note: ...`, or a bare `https://...` URL) is an error: start it with other text. Once the description has started, such lines are text. `Id:`, `id :` and Hebrew lines with a colon are always text.
+- Separate description paragraphs with a blank line; each renders as its own paragraph.
 - Do not add an option for "something else": the free-text box is already there unless `other: false`.
 - `use: <list>` brings in all of the list's options; there is no per-character filter.
 
