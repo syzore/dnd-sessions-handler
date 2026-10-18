@@ -27,9 +27,14 @@ link: Baba Yaga (Wikipedia) — https://en.wikipedia.org/wiki/Baba_Yaga
 
 באבא יאגה, "סבתא", היא מכשפת פיות עתיקה בעלת רגלי עצם, שגרה בבקתה על רגלי תרנגולת. היא סוחרת בסודות, ונדמה שאין דבר שהיא לא יודעת. המחיר יכול להיות נשיקה ראשונה, נשימה אחרונה, או שתאכל אותך. היא לא שוכחת עלבון, כמו שה[[gnome]] של [[midgard]] למדו. אפילו הסולטן לא סומך עליה, אבל מקשיב לעצותיה.
 
-<!-- Name-only term (A25): ticket 08 references it from world.md. -->
+<!-- sources: Aviv's notes, "what every captive in the empire knows" (KP-origins; KP-sultan; KP-dragoncoil; World Anvil Midgard Dragon Empire; EN World Let's Read Midgard Worldbook) -->
+<!-- uncertain: The laziness motive and the puppet sultan as Mharot's own compromise are the captives' version, as Aviv framed it; the blurb keeps "the morza distrust each other" from world.md and the morza term. Kalpostan is a name-only term. -->
 
 ### מהארוט
 id: mharot
 en: Mharot
 category: person
+link: Origins of the Mharoti Empire (Kobold Press) — https://koboldpress.com/welcome-to-midgard-origins-of-the-mharoti-empire/
+link: Midgard Icons: The Dragon Sultan (Kobold Press) — https://koboldpress.com/midgard-icons-the-dragon-sultan/
+
+מהארוט הוא ה[[dragon|דרקון]] האדום העתיק שייסד את [[mharoti_empire|האימפריה]] לפני כ-400 שנה. התעמולה קוראת לו גאון בעל חזון, אבל כל שבוי יודע את האמת: הוא פשוט התעייף לעבוד. הוא איחד את ה[[dragon]] השכנים כדי ש"הגזעים הנחותים" יכרו וישמרו בשבילם את הזהב. ה[[morza]] היו גאוותנים וחשדנים מכדי להשתחוות לדרקון אחר, אז הוא הושיב על הכס אדם "נחות" שיטפל בניירת ובמסים. גם [[ozmir_al_stragul]] יושב שם רק כי מהארוט לא רצה בירוקרטיה. [[kobold]] ואפילו [[dragonkin|בני-דרקון]] נופלים על ברכיהם כשהוא עובר. הוא בז ל[[harkesh]] ומושל מ[[kalpostan]] חנוקת האפר שבמזרח, וצאצאיו האדומים ממלאים את השמיים.

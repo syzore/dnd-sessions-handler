@@ -41,16 +41,24 @@ link: Pilgrimage to the Shrines of Azuran (Kobold Press) — https://koboldpress
 הרקש, "עיר הזהב", היא בירת האימפריה המהארוטית. שם נמצא ארמון שמונת היסודות של הסולטן. בבזאר הגדול שלה "אלף דוכנים", וגם סוחרים מארצות אויב באים אליה, כי מסחר לא מכיר גבולות. בעיר יש גם מקדשים גדולים ל[[azuran]] ולוולס.
 
 <!-- sources: KP-origins; KP-volpe (caravans avoid the Dragoncoil); WB-writeup (ley line magic; most morza come from the region) -->
-<!-- uncertain: The Hebrew "פיתול-הדרקון" renders "Dragoncoil" well. Goliath tribes on the highest peaks are campaign invention. -->
+<!-- uncertain: The Hebrew "פיתול הדרקון" renders "Dragoncoil" well; Aviv's spelling has no hyphen, and he added "סליל הדרקון" as the other name in use. Not the dragon roads ("הסליל של הדרקון", concepts.md). Goliath tribes on the highest peaks are campaign invention. -->
 
-### הרי פיתול-הדרקון
+### הרי פיתול הדרקון
 id: dragoncoil_mountains
 en: Dragoncoil Mountains
 category: place
+aliases: סליל הדרקון
 image: https://koboldpress.com/wp-content/uploads/2023/12/map_MharotiEmpire.jpg
 link: Origins of the Mharoti Empire (Kobold Press) — https://koboldpress.com/welcome-to-midgard-origins-of-the-mharoti-empire/
 
-הרי פיתול-הדרקון הם רכס ההרים שבלב האימפריה המהארוטית. [[drake]], תולעים וויברנים שורצים בהם, ומהם קיבלו ההרים את שמם. רוב ה[[dragon]] השליטים באים מכאן. ההרים עשירים בקסם של קווי ליי, ושיירות מעדיפות לעקוף אותם.
+הרי פיתול הדרקון הם רכס ההרים שבלב האימפריה המהארוטית. יש שקוראים להם "פיתול הדרקון" ויש שקוראים להם "סליל הדרקון". [[drake]], תולעים וויברנים שורצים בהם, ומהם קיבלו ההרים את שמם. רוב ה[[dragon]] השליטים באים מכאן. ההרים עשירים בקסם של קווי ליי, ושיירות מעדיפות לעקוף אותם.
+
+<!-- Name-only term: the Mharot blurb (people.md) references it. Source: Aviv's notes (Mharot rules from ash-choked Kalpostan in the east). -->
+
+### קלפוסטן
+id: kalpostan
+en: Kalpostan
+category: place
 
 <!-- sources: KP-khazzaki (Kaa'nesh, ogres and dragonkin, failed sieges, edjet shot near its walls); KP-dragoncoil ("tusked ogrekin"); WB-writeup (spelled Kaa'Nesh; blood mages) -->
 <!-- uncertain: Canon spelling varies: "Kaa'nesh" / "Kaa'Nesh". -->
@@ -61,7 +69,7 @@ en: Kaa'nesh
 category: place
 link: Khanate of the Khazzaki (Kobold Press) — https://koboldpress.com/welcome-to-midgard-khanate-of-the-khazzaki/
 
-קא'נש היא עיר מהארוטית למרגלות הרי פיתול-הדרקון, בקצה הדרומי של [[rothenian_plain]]. היא ביתם של [[ogre]] ו[[dragonkin]] שמתעבים את פרשי החזאקי. החאן ניסה לכבוש אותה שוב ושוב ונכשל. מגי-הדם שלה מקעקעים [[ogre]] והופכים אותם לחיל הלם.
+קא'נש היא עיר מהארוטית למרגלות הרי פיתול הדרקון, בקצה הדרומי של [[rothenian_plain]]. היא ביתם של [[ogre]] ו[[dragonkin]] שמתעבים את פרשי החזאקי. החאן ניסה לכבוש אותה שוב ושוב ונכשל. מגי-הדם שלה מקעקעים [[ogre]] והופכים אותם לחיל הלם.
 
 <!-- sources: KP-nuria (dozen conquest attempts repelled; Aten, Horus, Bastet; resurrected kings); KP-sultan (Ozmir's goal: conquer Nuria Natal); WB-writeup (oldest continuous human kingdom, about 5,000 years) -->
 
