@@ -192,3 +192,7 @@ Every player receives every shared step and every character's non-secret steps. 
 שלב מידע של דמות בקובץ שלה (בלי `from:`) יכול להחזיק `### secret` ו-`image:` בתוכו, בדיוק כמו בסשן ראשון: רק השחקן של הדמות (וה-DM) מקבלים אותם.
 
 A character's own info step (no `from:`) may hold a `### secret` and an `image:` inside it, exactly as in Session One: only that character's player (and the DM) receive them.
+
+`intro.md` נשלח לכל שחקן בשלמותו, כמו `world.md`, ולכן יש בו רק `### known`: `### secret` בו הוא טעות.
+
+Every player receives all of `intro.md`, like `world.md`, so it holds `### known` only: a `### secret` there is an error.

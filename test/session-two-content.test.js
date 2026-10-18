@@ -238,6 +238,13 @@ test('intro: "from", "when", "context" are unknown keys there', () => {
   fails({ 'session-two/intro.md': replace('title: סשן שני', 'title: סשן שני\nwhen: a = b') }, { file: 'session-two/intro.md', lineText: 'when: a = b', message: 'unknown key "when"' });
 });
 
+test('intro: no ### secret (contentFor never filters the intro, so every player would receive it)', () => {
+  fails(
+    { 'session-two/intro.md': (s) => s + '\n### secret\n\n- סוד.\n' },
+    { file: 'session-two/intro.md', lineText: '### secret', message: '"### secret" works only in a character\'s own info step; every player receives this file, so it holds ### known only' },
+  );
+});
+
 test('a step id repeated between own and shared steps is an error naming the other file', () => {
   fails(
     { [DETAILS]: (s) => s + '\n## text: subclass\nprompt: x\n' },

@@ -147,6 +147,29 @@ test('bullet: a heading item edits its title; text may be added, and only a head
   assert.equal((await secretA(s))[0].text, 'גוף');
 });
 
+test('bullet: an unindented image: line right below a bullet is the step image, and an edit keeps it', async () => {
+  const img = 'image: מגן — https://example.org/shield.png';
+  const s = await withSecret(`- **ח** א\n${img}\n- אחרי.\n`);
+  const lore = stepOf(await content(s), 'lore');
+  assert.deepEqual(lore.secretImage, { src: 'https://example.org/shield.png', alt: 'מגן' });
+  assert.deepEqual(lore.secret.map((x) => x.text), ['א', 'אחרי.']);
+  await saveTouching(s, 'characters/a.md', { line: lore.secret[0].src.bullet.line, field: 'bullet', value: { title: 'ח', text: 'ב\nג' } }, 22, 22);
+  assert.ok(read(s, 'characters/a.md').includes(`\n- **ח** ב\n  ג\n${img}\n- אחרי.\n`));
+  const after = stepOf(await content(s), 'lore');
+  assert.deepEqual(after.secretImage, lore.secretImage);
+  assert.deepEqual(after.secret.map((x) => x.text), ['ב\nג', 'אחרי.']);
+});
+
+test('bullet: an indented image: line under a bullet is item text for parser and editor alike', async () => {
+  const s = await withSecret('- **ח** א\n  image: לא תמונה — https://example.org/x.png\n- אחרי.\n');
+  const lore = stepOf(await content(s), 'lore');
+  assert.equal(lore.secretImage, undefined);
+  assert.equal(lore.secret[0].text, 'א\nimage: לא תמונה — https://example.org/x.png');
+  // the editor's range is the whole item, the indented line included
+  await saveTouching(s, 'characters/a.md', { line: lore.secret[0].src.bullet.line, field: 'bullet', value: { title: 'ח', text: 'יחיד' } }, 22, 23);
+  assert.deepEqual(stepOf(await content(s), 'lore').secret.map((x) => x.text), ['יחיד', 'אחרי.']);
+});
+
 test('option: label, subtitle, description in one request, one version', async () => {
   const o = stepOf(await content(on), 'pick').options[0];
   const v0 = (await content(on)).edit.files['characters/a.md'];

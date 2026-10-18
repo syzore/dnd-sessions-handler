@@ -169,11 +169,13 @@ use: faith-secret
 
 #### תמונה בדף מידע / An info step image
 
-שורה `image: <תיאור התמונה> — <כתובת>` בתוך `### known` או `### secret` מציגה תמונה אחת בראש השלב, מתחת לכותרת, ממורכזת ולא גבוהה מ-40% מהמסך. התיאור חובה (טקסט חלופי לקוראי מסך), בלי `[[הפניות]]`. הכתובת היא `https://...` או קובץ שנמצא ב-`public/img/`, שנכתב `/img/<שם>.png` (גם `.jpg`, `.jpeg`, `.webp`, `.svg`). קובץ שלא קיים הוא טעות. תמונה אחת לשלב, ולא בשורות המפתח שמעל הסעיפים.
+שורה `image: <תיאור התמונה> — <כתובת>` בתוך `### known` או `### secret` מציגה תמונה אחת בראש השלב, מתחת לכותרת, ממורכזת ולא גבוהה מ-40% מהמסך. התיאור חובה (טקסט חלופי לקוראי מסך), בלי `[[הפניות]]`. הכתובת היא `https://...` או קובץ שנמצא ב-`public/img/`, שנכתב `/img/<שם>.png` (גם `.jpg`, `.jpeg`, `.webp`, `.svg`). שם הקובץ באותיות לטיניות קטנות, ספרות, `_`, `-` ו-`.`, ונכתב בדיוק כמו בדיסק: ב-Mac `Shield.PNG` נטען, אבל השרת ב-Railway (Linux) מבחין בין אותיות גדולות לקטנות. קובץ שלא קיים הוא טעות. תמונה אחת לשלב, ולא בשורות המפתח שמעל הסעיפים.
 
-An `image: <alt text> — <address>` line inside `### known` or `### secret` shows one image at the top of the step, under the title, centered and at most 40% of the screen height. The alt text is required (screen readers read it); no `[[references]]` in it. The address is `https://...` or a file in `public/img/`, written `/img/<name>.png` (also `.jpg`, `.jpeg`, `.webp`, `.svg`). A missing file is an error. One image per step, and not among the key lines above the sections.
+An `image: <alt text> — <address>` line inside `### known` or `### secret` shows one image at the top of the step, under the title, centered and at most 40% of the screen height. The alt text is required (screen readers read it); no `[[references]]` in it. The address is `https://...` or a file in `public/img/`, written `/img/<name>.png` (also `.jpg`, `.jpeg`, `.webp`, `.svg`). The path is lowercase Latin letters, digits, `_`, `-` and `.`, spelled exactly as the file on disk: a Mac finds `Shield.PNG` under any case, but the Railway server (Linux) does not. A missing file is an error. One image per step, and not among the key lines above the sections.
 
 - **בתוך `### secret` התמונה סודית / Inside `### secret` the image is secret:** רק השחקן של הדמות (וה-DM) מקבלים אותה, כמו את הסוד. בתוך `### known` כולם מקבלים אותה / only the character's player (and the DM) receive it, like the secret. Inside `### known` everyone does.
+- **קבצים ב-`/img/` גלויים לכולם / `/img/` files are public:** השרת מגיש כל קובץ ב-`public/img/` לכל מי שמבקש אותו. תמונה סודית רק לא נשלחת לשחקנים אחרים בתוכן; מי שמנחש את השם רואה אותה. / The server serves every file in `public/img/` to anyone who asks. A secret image is only left out of other players' content; anyone who guesses the file name can open it.
+- **שני סוגי `image:` / Two kinds of `image:`:** במונח (`terms/`), `image:` היא כתובת `https://` בלבד, בלי תיאור. בדף מידע, `image:` היא `<תיאור> — <כתובת>`. / In a term (`terms/`), `image:` is a bare `https://` URL. In an info step, `image:` is `<alt text> — <address>`.
 
 ```markdown
 ## info: vision
@@ -186,8 +188,8 @@ image: מגן כחול עם ראש דרקון פלטינה — /img/turator-shie
 - **ההתכנסות הראשונה** אתה עומד בתוך אולם גדול.
 ```
 
-`world.md` הוא שלב info אחד (`## info: common_lore`) שכל השחקנים רואים.
-`world.md` is a single info step (`## info: common_lore`) every player sees.
+`world.md` הוא שלב info אחד (`## info: common_lore`) שכל השחקנים רואים. כל שחקן מקבל אותו בשלמותו, ולכן יש בו רק `### known`: `### secret` בו הוא טעות.
+`world.md` is a single info step (`## info: common_lore`) every player sees. Every player receives all of it, so it holds `### known` only: a `### secret` there is an error.
 
 ## רשימה משותפת / A shared list
 

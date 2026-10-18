@@ -51,7 +51,27 @@ function checkUrl(url, fail) {
 // Where server.js serves /img/... from: public/ next to this file (both live at the repo root).
 const PUBLIC_DIR = fileURLToPath(new URL('./public', import.meta.url));
 // A repo-hosted image: /img/<name> (subfolders allowed), no dot-files, no "..", a known image type.
-const LOCAL_IMAGE = /^\/img\/(?:[a-z0-9_-][a-z0-9_.-]*\/)*[a-z0-9_-][a-z0-9_.-]*\.(?:png|jpe?g|webp|svg)$/i;
+// Lowercase only: server.js picks the MIME type by the (lowercase) extension.
+const LOCAL_IMAGE = /^\/img\/(?:[a-z0-9_-][a-z0-9_.-]*\/)*[a-z0-9_-][a-z0-9_.-]*\.(?:png|jpe?g|webp|svg)$/;
+
+// Is `src` ("/img/a/b.png") a file under root, with every segment spelled exactly as on disk?
+// fs.existsSync ignores case on macOS, but production runs on Linux, where a wrong case is a 404.
+export function fileExactly(root, src) {
+  let dir = root;
+  const segs = src.split('/').filter(Boolean);
+  for (const [k, seg] of segs.entries()) {
+    let ents;
+    try {
+      ents = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    const e = ents.find((x) => x.name === seg);
+    if (!e || (k === segs.length - 1 ? !e.isFile() : !e.isDirectory())) return false;
+    dir = path.join(dir, seg);
+  }
+  return segs.length > 0;
+}
 
 // One info-step "image:" value: "<alt text> [— or -] <https URL | /img/<file>>" -> { src, alt }.
 // A /img/ path must name a file in public/img/ (checked at load). fail(msg) throws with file and line.
@@ -61,10 +81,10 @@ function parseImage(value, fail) {
   if (!m || !alt || !/^(?:[a-z][a-z0-9+.-]*:|\/|img\/)/i.test(m[2]))
     fail('"image:" is "image: <alt text> — /img/<file> or https://..."; the alt text describes the picture');
   const src = m[2];
-  const notImage = () => fail(`"${src}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg)`);
+  const notImage = () => fail(`"${src}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg); the path is lowercase: Latin letters, digits, _ - .`);
   if (src.startsWith('/') && !src.startsWith('//')) {
     if (!LOCAL_IMAGE.test(src) || src.split('/').some((seg) => seg === '..')) notImage();
-    if (!fs.existsSync(path.join(PUBLIC_DIR, src))) fail(`"${src}": there is no file public${src}`);
+    if (!fileExactly(PUBLIC_DIR, src)) fail(`"${src}": there is no file public${src} (spelled exactly, case included)`);
   } else {
     let u;
     try {
@@ -381,6 +401,9 @@ export function parseFile(text, rel, kind, lists = {}, terms = new Map(), { key,
       if (step.type === 'info') {
         if (h !== 'known' && h !== 'secret') fail(n, 'an info step\'s sections are "### known" and "### secret"');
         if (step[h]) fail(n, `"### ${h}" appears twice in this step`);
+        // world.md / intro.md are commonLore, which contentFor sends to every player unfiltered.
+        if (h === 'secret' && kind === 'world')
+          fail(n, '"### secret" works only in a character\'s own info step; every player receives this file, so it holds ### known only');
         step[h] = [];
         section = h;
         continue;

@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadContent, ContentError, contentFor } from '../session-one-content.js';
+import { loadContent, ContentError, contentFor, fileExactly } from '../session-one-content.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BASIC = path.join(HERE, 'fixtures', 'session-one', 'basic');
@@ -357,10 +357,32 @@ test('info image: a section may hold only the image', () => {
 });
 
 test('info image: other schemes, non-/img/ paths and missing files are content errors with file and line', () => {
-  const bad = (v) => `content/session-one/characters/a.md line 17: "${v}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg)`;
+  const bad = (v) => `content/session-one/characters/a.md line 17: "${v}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg); the path is lowercase: Latin letters, digits, _ - .`;
   for (const v of ['http://example.org/a.png', 'data:image/png;base64,AAAA', 'javascript:alert(1)', '/shared/style.css', 'img/turator-shield.png', '/img/../server.js', '/img/.hidden.png', '/img/x.gif', '//example.org/a.png'])
     fails(secretImage(`image: מגן — ${v}`), bad(v));
-  fails(secretImage('image: מגן — /img/no-such-file.png'), 'content/session-one/characters/a.md line 17: "/img/no-such-file.png": there is no file public/img/no-such-file.png');
+  fails(secretImage('image: מגן — /img/no-such-file.png'), 'content/session-one/characters/a.md line 17: "/img/no-such-file.png": there is no file public/img/no-such-file.png (spelled exactly, case included)');
+});
+
+test('info image: a /img/ path is lowercase and names the file exactly (Linux disks are case-sensitive)', () => {
+  const msg = (v) => `content/session-one/characters/a.md line 17: "${v}" is not an image this page can show: use https://... or a file under public/img/ as /img/<name>.png (also .jpg, .jpeg, .webp, .svg); the path is lowercase: Latin letters, digits, _ - .`;
+  // macOS finds these (its disk ignores case); production on Linux would not
+  for (const v of ['/img/Turator-Shield.PNG', '/img/turator-shield.PNG', '/img/TURATOR-SHIELD.png', '/IMG/turator-shield.png'])
+    fails(secretImage(`image: מגן — ${v}`), msg(v));
+});
+
+test('fileExactly: every path segment must match a directory entry byte for byte', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 's1-img-'));
+  fs.mkdirSync(path.join(root, 'img', 'Sub'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'img', 'Shield.png'), '');
+  fs.writeFileSync(path.join(root, 'img', 'Sub', 'a.png'), '');
+  fs.writeFileSync(path.join(root, 'img', 'ok.png'), '');
+  assert.equal(fileExactly(root, '/img/ok.png'), true);
+  assert.equal(fileExactly(root, '/img/Shield.png'), true);
+  assert.equal(fileExactly(root, '/img/shield.png'), false);
+  assert.equal(fileExactly(root, '/img/sub/a.png'), false);
+  assert.equal(fileExactly(root, '/img/Sub/a.png'), true);
+  assert.equal(fileExactly(root, '/img/Sub'), false); // a folder is not a file
+  assert.equal(fileExactly(root, '/img/none.png'), false);
 });
 
 test('info image: alt text is required, the value is "<alt text> — <path or URL>"', () => {
@@ -379,6 +401,13 @@ test('info image: one per step, not at the step top, no [[refs]] in it', () => {
   fails(secretImage(`image: [[baal]] — ${SHIELD}`), /^content\/session-one\/characters\/a\.md line 17: a term reference \[\[\.\.\.\]\] is not allowed here/);
   // a choice step keeps the plain unknown-key error
   fails({ 'characters/a.md': replace('hint: רמז על [[veles]]\n', `hint: רמז על [[veles]]\nimage: מגן — ${SHIELD}\n`) }, /^content\/session-one\/characters\/a\.md line 23: unknown key "image"/);
+});
+
+test('world.md has no ### secret: contentFor never filters it, so every player would receive it', () => {
+  fails(
+    { 'world.md': replace('### known\n', '### known\n\n- גלוי.\n\n### secret\n\n- סוד.\n') },
+    'content/session-one/world.md line 10: "### secret" works only in a character\'s own info step; every player receives this file, so it holds ### known only',
+  );
 });
 
 test('info image: contentFor drops a secret image for every other viewer, keeps a known one for all', () => {
