@@ -26,7 +26,7 @@ The terms this spec uses (subclass, carried answer, background override, effecti
 ## Decisions already made (by Aviv or the PM, do not reopen)
 
 - Same look and flow as Session One. Reuse or generalise the step engine and the parser. New content folder `content/session-two/`, and a route that mirrors `/session-one`. No new design.
-- Subclasses (2024 PHB, level 3): turator = Paladin (Devotion, Glory, Ancients, Vengeance); deq (shown as רזול; the id stays `deq`) = Barbarian (Berserker, Wild Heart, World Tree, Zealot); tenni = Cleric (Life, Light, Trickery, War); bebby = Rogue (Arcane Trickster, Assassin, Soulknife, Thief); vilhelm = Wizard (Abjurer, Diviner, Evoker, Illusionist). A one-line Hebrew description for each.
+- Subclasses (2024 PHB, level 3): turator (shown as גריי; the id stays `turator`) = Paladin (Devotion, Glory, Ancients, Vengeance); deq (shown as רזול; the id stays `deq`) = Barbarian (Berserker, Wild Heart, World Tree, Zealot); tenni = Cleric (Life, Light, Trickery, War); bebby = Rogue (Arcane Trickster, Assassin, Soulknife, Thief); vilhelm = Wizard (Abjurer, Diviner, Evoker, Illusionist). A one-line Hebrew description for each.
 - Session One answers that overlap the subclass (vilhelm `element`, deq `on_evoker`, bebby `rogue_type`) are reconciled. How: D8.
 - Background carry-over: if the player answered `background` in Session One, Session Two skips that step and uses the answer. A per-character front-matter override in Session Two content wins over it. With neither, Session Two asks the same background step as Session One (its options are per character).
 - Background details: one follow-up step per background, shown only for the matching background. Covers every Session One background option of all five characters plus the 2024 PHB list (Acolyte, Artisan, Charlatan, Criminal, Entertainer, Farmer, Guard, Guide, Hermit, Merchant, Noble, Sage, Sailor, Scribe, Soldier, Wayfarer). Options are grounded in world lore, plus free text. A custom or unknown background gets a generic free-text question.
@@ -45,7 +45,7 @@ Aviv does not review this spec. These are decisions; engineers build to them and
 - **A7. Priority.** Override > carried Session One answer > Session Two answer. A carried answer wins over a Session Two answer even if the Session Two answer is newer (F11).
 - **A8. Carried answers are read live, never copied.** Every Session Two load reads the current Session One record. Session Two never writes Session One data.
 - **A9. Subclass step keeps the free-text box.** A player can write a non-PHB subclass. The step link goes to the class page on dnd2024.wikidot.com, which lists every subclass. Aviv handles a free-text subclass at the table.
-- **A10. The subclass step comes first, then background, then details.** Subclass is the main decision of the session and does not depend on the background. *Note (2026-10-18):* Turator's flow is vision (info) → subclass → vision_end (info) → background; the two info steps hold his secret trance vision and ask nothing.
+- **A10. The subclass step comes first, then background, then details.** Subclass is the main decision of the session and does not depend on the background. *Note (2026-10-18):* Grey's flow is vision (info) → subclass → vision_end (info) → background; the two info steps hold his secret trance vision and ask nothing.
 - **A11. Details steps are required.** A choice details step needs a pick or free text. `details_other` is a text step and needs text. Subclass is required. Nothing in Session Two is `optional:`.
 - **A12. Glossary terms added.** 19 subclass terms (`sc_<option id>`, category `class`, in `content/session-two/terms/subclasses.md`); Vilhelm's Evoker reuses the existing `evoker` term. 9 background terms for the 2024 PHB backgrounds no character offers (`bg_artisan`, `bg_entertainer`, `bg_farmer`, `bg_guard`, `bg_guide`, `bg_merchant`, `bg_noble`, `bg_sailor`, `bg_wayfarer`, in `content/session-two/terms/backgrounds-2024.md`). Details options get no terms; they reference existing world terms with `[[id]]`. The vocabulary now lives in `GLOSSARY.md`.
 - **A13. Session One content is not edited.** All new terms live in `content/session-two/terms/`. Session One parses and renders byte-for-byte as before.
@@ -240,7 +240,7 @@ Data and flow:
 | F13 | The Session One owner chose `switch` | As F12 (A4). |
 | F14 | The group in Session Two is a new code | Nothing to carry; everything is asked. The create screen tells groups to reuse the old link (D8). |
 | F15 | Two players want the same character in Session Two | The second gets 409 "הדמות הזאת כבר נלקחה", as Session One; the card shows "נלקחה". |
-| F16 | Same browser played Turator in Session One, picks Bebby in Session Two | Bebby's Session One answers carry (D1). The Turator card shows the "שיחקת בה" hint; nothing forces it. |
+| F16 | Same browser played Grey in Session One, picks Bebby in Session Two | Bebby's Session One answers carry (D1). The Grey card shows the "שיחקת בה" hint; nothing forces it. |
 | F17 | Different browser or cleared storage | Carry still works (matched by character). The pick hint is missing (no `s1Character`). |
 | F18 | Session One background is free text only (`background_other`, no pick) | Background counts as answered: step skipped, `details_other` shown, context line shows the text. |
 | F19 | Session One background has a pick and free text | The pick decides the details step; the context line shows both. |
@@ -265,7 +265,7 @@ Data and flow:
 - [ ] A `background:` override skips the background step even when Session One has a different answer; the details step follows the override and shows "נקבע על ידי ה-DM".
 - [ ] With neither, the Session One background step for that character is asked, and the details step follows the answer.
 - [ ] A free-text background gets `details_other`.
-- [ ] Vilhelm, Bebby, Razul, Tenni and Turator see their D8 context line when the Session One answer exists, and no line when it does not.
+- [ ] Vilhelm, Bebby, Razul, Tenni and Grey see their D8 context line when the Session One answer exists, and no line when it does not.
 - [ ] `/session-two/<CODE>/dm?key=` lists every Session Two player with the visible steps' answers and the background source.
 - [ ] Session One behaves as before: its tests pass, its responses are unchanged.
 - [ ] `npm test` loads the real `content/session-two` and passes, including the coverage test.
@@ -289,7 +289,7 @@ Data and flow:
 
 ### D11. Fixed backgrounds
 
-Four characters get a `background:` in their front matter (D3), so their background step is skipped and the details step follows the override: deq `soldier`, tenni `sage`, bebby `court_servant`, vilhelm `mharoti_scholar_criminal` (D12). Turator keeps the Session One question, so his background varies.
+Four characters get a `background:` in their front matter (D3), so their background step is skipped and the details step follows the override: deq `soldier`, tenni `sage`, bebby `court_servant`, vilhelm `mharoti_scholar_criminal` (D12). Grey keeps the Session One question, so his background varies.
 
 ### D12. Vilhelm's custom background
 
@@ -307,7 +307,7 @@ Term `bg_mharoti_scholar_criminal` (in `terms/`) carries the flavour paragraph. 
 After the details step(s), every character gets four choice steps with ids `trait`, `ideal`, `bond`, `flaw` (personality trait, ideal, bond, flaw). They are per character (option sets differ), so they live in the character files. **Ordering (decided, Aviv's manager, 2026-10-15):** the shared `details_*` steps (D5) come first, so a character file holds a `## shared` line (D14) right before `trait`; the loader inserts the shared steps there. Without the line they go at the end, as before.
 
 - Each has 6 to 8 options, written in Hebrew, adapted from the 2014 PHB and SCAG tables to the lore, with `random: true` (D14). The "random" button draws one of the visible options and stores its id. Free text stays available (`other: true`, as in Session One).
-- Turator's background varies, so his options are keyed with option `when: background = <id>` for the backgrounds that have their own options, plus generic paladin options with no `when:`, shown for any background.
+- Grey's background varies, so his options are keyed with option `when: background = <id>` for the backgrounds that have their own options, plus generic paladin options with no `when:`, shown for any background.
 - Every other character has fixed options (their background is fixed by D11).
 
 ### D14. Grammar added to the loader
@@ -331,5 +331,5 @@ All Session Two only; Session One keeps rejecting them as "unknown key" and its 
 - [ ] Vilhelm sees his four steps; the two multi steps accept exactly 2 picks and refuse fewer or more.
 - [ ] Every character has `trait`, `ideal`, `bond`, `flaw` after the details step; each has 6 to 8 options and a "אקראי 🎲" button.
 - [ ] The random button draws one of the options visible for that player and stores its id (never a hidden option, never "random").
-- [ ] Turator sees the options for his effective background plus the generic ones, and no option of another background.
+- [ ] Grey sees the options for his effective background plus the generic ones, and no option of another background.
 - [ ] `npm test` passes: one test per rule in D14, with file and line in each error; Session One output is unchanged.

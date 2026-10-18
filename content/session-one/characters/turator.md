@@ -1,12 +1,12 @@
 ---
 id: turator
-name: טוראטור
+name: גריי
 class: פלדין
 icon: shield
 order: 1
 ---
 
-# טוראטור
+# גריי
 
 <!-- TODO: Aviv fills this in -->
 
@@ -27,7 +27,7 @@ use: faith-secret
 
 ## choice: background
 title: 📜 מה הרקע שלך?
-prompt: הרקע הוא מה שעשית בחיים לפני ההרפתקה. בחר אחד מחמשת הרקעים שמתאימים לטוראטור, או כתוב רקע אחר מהרשימה המלאה.
+prompt: הרקע הוא מה שעשית בחיים לפני ההרפתקה. בחר אחד מחמשת הרקעים שמתאימים לגריי, או כתוב רקע אחר מהרשימה המלאה.
 link: הרשימה המלאה של הרקעים (באנגלית) — https://www.dndbeyond.com/backgrounds
 
 ### אביר מסדר
@@ -72,7 +72,7 @@ use: gods
 use: training
 
 ## text: why
-prompt: למה טוראטור יצא להרפתקאות?
+prompt: למה גריי יצא להרפתקאות?
 
 ## choice: vibe
 prompt: איך תשחק אותו?

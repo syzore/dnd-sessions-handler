@@ -147,7 +147,7 @@ Scope:
 Scope:
 - A new step only (A31). No existing step is removed, renamed or merged, including bebby's `origin` and vilhelm's `magic_origin`.
 - Step text: the D10 `title:`, `prompt:` (with the character's name) and `link:` lines, exactly as written there. No `multi:`, no `optional:`, no `other:` (A10).
-- Options: at most 5 per character, in draft order (A14). Option id = the draft id as written; it is already snake_case, so the A6 `-` → `_` step is a no-op. The same `en` uses one id in every file (A6). Tenni's and Turator's options are converted as drafted, although their race is a TODO (A34). Heading = `he` without a trailing Latin parenthetical. `term: bg_<option id>` (A7). `subtitle:` = fit. Description = draft description. No emoji (A9).
+- Options: at most 5 per character, in draft order (A14). Option id = the draft id as written; it is already snake_case, so the A6 `-` → `_` step is a no-op. The same `en` uses one id in every file (A6). Tenni's and Grey's options are converted as drafted, although their race is a TODO (A34). Heading = `he` without a trailing Latin parenthetical. `term: bg_<option id>` (A7). `subtitle:` = fit. Description = draft description. No emoji (A9).
 - Terms: one entry per distinct background (17), `category: background`, blurb = description + `מקור: <source>` as written (mixed editions allowed, A33), `link: <en> — <url>` (D10). `bg_gladiator` has the extra paragraph "זהו וריאנט של רקע הבדרן." between them (A32).
 - Full-list URL: `https://www.dndbeyond.com/backgrounds` in all 5 files (A12).
 - Glossary candidates: every candidate is a chosen background, so no candidates comment is written and the candidates' blurbs are not used (A16).

@@ -142,7 +142,7 @@ Shared lore bullets are written once too: a `lists/<name>.md` file of `- **title
 
 use: faith-secret
 
-- **המסדרים השבורים** סוד שרק לטוראטור יש.
+- **המסדרים השבורים** סוד שרק לגריי יש.
 ```
 
 #### כותרת וטקסט ארוך / Headings and long prose

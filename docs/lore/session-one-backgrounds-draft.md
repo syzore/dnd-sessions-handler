@@ -13,7 +13,7 @@ Verified 2026-10-10 with `curl -sL` (status + page title/content check). Sources
   - turator: `lore`, `god`, `training`, `why`, `vibe`
   - vilhelm: `lore`, `magic_origin`, `magic_dream`, `element`, `allegiance`, `goal`
   - None of them is `background` or `background_other` (the key for the free-text answer).
-- **Race/class as the content states it.** `class:` comes from the frontmatter. Race comes from the lore `title:`. Tenni and Turator have no race in the content (their titles say only "כוהן/פלדין באימפריית הדרקון", and both files have a `TODO: Aviv fills this in` comment).
+- **Race/class as the content states it.** `class:` comes from the frontmatter. Race comes from the lore `title:`. Tenni and Grey have no race in the content (their titles say only "כוהן/פלדין באימפריית הדרקון", and both files have a `TODO: Aviv fills this in` comment).
 - **Hebrew terms reused from the content:** ג'מבוקה, מורזה, האימפריה המהארוטית, הרקש, נוריה נטאל, שבע הערים, קסילון, בני-ענק, לוחמי זירה, מבריח, מלומדים. I avoided `נוכל` as a background label because it is the rogue class name (bebby's `class: נוכל`). Charlatan is `רמאי`, to match bebby's existing `con` option, "🦊 הרמאי".
 
 ## Full-list URL (for the "other" box)
@@ -338,7 +338,7 @@ These are the backgrounds whose English name doesn't explain itself, or that com
 ## Unverified or open
 
 - **Midgard Heroes Handbook (Kobold Press 2018) backgrounds:** not checked. It is not on Open5e, and I found no free primary source. *Tome of Heroes* is the only Kobold Press source verified here.
-- **Tenni and Turator race:** not in the content (TODO). Their fit lines rely on class and lore only.
+- **Tenni and Grey race:** not in the content (TODO). Their fit lines rely on class and lore only.
 - **Hebrew labels** are my coinages (no official Hebrew D&D). "איש הפרא" (outlander) and "בעל ייעוד" (destined) are the weakest.
 - **Images:** none verified, so every glossary entry says `image: none`.
 - **Wikidot** is unofficial, community-run and copyright-gray. It is used for links because the D&D Beyond detail pages for non-SRD backgrounds are paywalled (303 to the marketplace).

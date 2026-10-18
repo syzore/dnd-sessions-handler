@@ -1,6 +1,6 @@
 # האלים
 
-<!-- Shared by every step with "use: gods" (Turator, Tenni). The title and prompt here are that step's defaults; a step can override them. -->
+<!-- Shared by every step with "use: gods" (Grey, Tenni). The title and prompt here are that step's defaults; a step can override them. -->
 
 title: חמישה אלים שתוכלו לבחור בהם
 prompt: אז מי מדבר אליכם? בחרו באל שהערכים שלו הכי מתאימים לדמות שלכם — לא רק למי שאתם רוצים להילחם נגדו, אלא גם לסיבה שבגללה אתם יוצאים לקרב מלכתחילה.

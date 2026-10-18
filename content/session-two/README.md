@@ -180,7 +180,7 @@ random: true
 ## מוסכמות בתוכן הנוכחי / Conventions in the current content
 
 - **Characteristics** (`trait`, `ideal`, `bond`, `flaw`): per character, after the `## shared` line, 6 to 8 options each, `random: true`. The label is short, the PHB-style first-person sentence is the description, and an ideal's alignment is its subtitle. A test fails if any `details_*` or `msc_*` step comes after `trait`.
-- **Turator** has no fixed background, so each characteristic has 3 options with no `when:` (ids `gen_*`) plus 4 options per background with `when: background = <id>`: 7 visible for any covered background, and only the 3 `gen_*` for free text.
+- **Grey** has no fixed background, so each characteristic has 3 options with no `when:` (ids `gen_*`) plus 4 options per background with `when: background = <id>`: 7 visible for any covered background, and only the 3 `gen_*` for free text.
 - **Vilhelm's custom background** (`mharoti_scholar_criminal`): his own `msc_*` steps, each `when: background = mharoti_scholar_criminal`. Their terms are in `terms/proficiencies.md`: ids carry the prefixes `skill_`, `tool_`, `lang_`, `feat_`. Skills, tools, languages and feats use `category: concept`; no closer category exists.
 
 ## 🔒 סודות / Keep secrets out of shared steps

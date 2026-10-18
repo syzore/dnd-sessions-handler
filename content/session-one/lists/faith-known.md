@@ -1,6 +1,6 @@
 # אמונה באימפריית הדרקון: מה כולם יודעים
 
-<!-- Shared lore bullets for Turator and Tenni: "use: faith-known" under their ### known. Edit here once, both characters get it. -->
+<!-- Shared lore bullets for Grey and Tenni: "use: faith-known" under their ### known. Edit here once, both characters get it. -->
 
 - **קסם אלוהי הוא איום** דת המדינה היא אלי ה[[dragon]], [[baal]] ו[[azuran]], ולצדם [[veles|וֶלֶס]] נחש-העולם. בעיני [[morza]], מטיל לחשים אלוהי שאינו דרקוני הוא לא מתנגד. הוא כופר, ואלוהיו מערערים על שלטון הדרקונים.
 - **רק פולחן שמשתחווה** האימפריה סובלת רק אמונה שכורעת לסדר הדרקוני: פטרוני דרקונים של היסודות, ודרקונים כיורשיו האלוהיים של נחש-העולם. תפילה בגלוי, סמל קדוש של אל גולה או [[human|אנושי]], טקס בלי היתר: עונשם מוות או עבדות.

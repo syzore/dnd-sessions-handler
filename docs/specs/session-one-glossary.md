@@ -82,7 +82,7 @@ Glossary draft (tickets 02, 06, 08):
   - `goliath`: remove the last sentence ("השבטים של רזול ... הם תוספת של הקמפיין."). The rest matches `deq.md` line 16.
   - `cassilon`: in the first sentence, replace "ממלכה קוסמופוליטית במערב" with "עיר אגדית של מלאכה ומסחר במערב" (`deq.md` line 17).
   - `holy-orders`: replace the second sentence ("בממלכת מגדר עדיין פועלים שניים: ...") with "רוב המסדרים של בני האדם והגמדים נופצו, ורק פלגים קטנים עדיין מסתתרים לאורך הגבולות, בממלכת מגדר ובנוריה נטאל." (`turator.md` line 24).
-  - Proposed bullet "ממלכת מגדר": replace "עם עגלות מלחמה משוריינות ושני מסדרי אבירים קדושים" with "עם עגלות מלחמה משוריינות". The bullet is public, and Turator's lore says the orders were shattered.
+  - Proposed bullet "ממלכת מגדר": replace "עם עגלות מלחמה משוריינות ושני מסדרי אבירים קדושים" with "עם עגלות מלחמה משוריינות". The bullet is public, and Grey's lore says the orders were shattered.
   - `imperial-inquisitors`, `dragon-roads`, `law-of-masks`: the blurbs already agree with the content. Keep them as written.
 - **A29. "חצי-אדם" is halfling, unconfirmed.** Bebby's "חצי-אדם" maps to the `halfling` term (`en: Halfling`). The comment above the entry starts with "unconfirmed:": `<!-- uncertain: unconfirmed: the content's "חצי-אדם" was read as halfling from context ... -->` (the rest of the draft's text follows).
 - **A30. The World Serpent's id is `veles`** (set by this spec, not the PM). The draft and canon spell him Veles (ולס), so the term id is `veles` and `en: Veles`. Ticket 01 seeds `veles` (not "velas"), and ticket 06 replaces the seed entry with the draft entry of the same id.
@@ -92,7 +92,7 @@ Background draft (ticket 07):
 - **A31. The background step is added, never substituted.** `background` is its own step, next to bebby's `origin` and vilhelm's `magic_origin`. No existing step is removed, renamed or merged into it: answered step ids are immutable.
 - **A32. Gladiator stays.** Deq keeps `gladiator`. Its term blurb is: the draft description, then the paragraph "זהו וריאנט של רקע הבדרן.", then `מקור: 2014 PHB (variant of Entertainer)`. "הבדרן" is plain text (Entertainer is not a term), and no English is typed in the Hebrew text. The card keeps the draft description only.
 - **A33. Mixed editions are allowed.** Backgrounds from the 2014 PHB, the 2024 PHB, Kobold Press *Tome of Heroes* and other WotC books sit side by side. Nothing is normalized to one edition. The `מקור:` line in the term popup (D10) is the only edition marker, copied as written in the draft.
-- **A34. Tenni and Turator picks stand.** Their race is still a TODO in the content. The draft's picks for them, based on class and lore only, are converted as drafted. The build does not wait for the race.
+- **A34. Tenni and Grey picks stand.** Their race is still a TODO in the content. The draft's picks for them, based on class and lore only, are converted as drafted. The build does not wait for the race.
 
 ## Design decisions (made in this spec)
 
@@ -267,7 +267,7 @@ subtitle: <fit>
 <description>
 ```
 
-`<name>` per file: deq "רזול", bebby "בבי", turator "טוראטור", tenni "טני", vilhelm "וילהלם" (so "לרזול", "לבבי", "לטוראטור", "לטני", "לוילהלם").
+`<name>` per file: deq "רזול", bebby "בבי", turator "גריי", tenni "טני", vilhelm "וילהלם" (so "לרזול", "לבבי", "לגריי", "לטני", "לוילהלם").
 
 **Placement** (A5): directly after `## info: lore`.
 
