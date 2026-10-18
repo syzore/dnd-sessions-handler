@@ -30,6 +30,8 @@ Run `npm run check-terms` too: it requests every term image and link and every s
 
 Ids are Latin lowercase, digits and `_`. Once players have answered, never change a character, step or option id: saved answers point at it. The Hebrew text can always change.
 
+A character's display name (`name:`) is also repeated in prose (other characters' files, `terms/`, examples here). To rename one, search the Hebrew name with its prefix letters (ו, ה, ב, ל...) and judge each hit; the id stays.
+
 ## קובץ דמות / A character file
 
 ```markdown
@@ -87,6 +89,12 @@ link: הרשימה המלאה (באנגלית) — https://www.dndbeyond.com/bac
 
 Each option is `### <emoji> <label>`. Under it: `id:` (required when the label is Hebrew), an optional `subtitle:`, then a blank line and the description paragraph(s). Options with a description render as cards. The emoji is optional.
 
+- Give every option an `id:` line. Two options without one fail with `option id "undefined" is used twice`, even when the labels are Latin.
+- Under an option only `id:`, `subtitle:` and `term:` are keys. Any other `key: value` line silently becomes description text; only `when:` is rejected (it is Session Two grammar).
+- Write the description as one paragraph: a second paragraph currently renders run on, in the same block of text.
+- Do not add an option for "something else": the free-text box is already there unless `other: false`.
+- `use: <list>` brings in all of the list's options; there is no per-character filter.
+
 **`term: <id>`** (אם רוצים) מקשר את האפשרות למונח מ-`terms/` (ראו "מונחים" למטה). ליד הכרטיס מופיע כפתור מידע (ⓘ) שפותח את חלון המונח, בלי לבחור את הכרטיס, והשם מקבל את האנגלית: "בהאמוט (Bahamut)". **לא כותבים את האנגלית בסוגריים בשם האפשרות** (`### חייל (Soldier)`): היא תופיע פעמיים. מזהה מונח שלא קיים הוא טעות. מונח בלי תיאור, תמונה וקישור מוסיף רק את האנגלית, בלי כפתור מידע.
 
 **`term: <id>`** (optional) links the option to a term in `terms/` (see "Terms" below). The card gets an info button (ⓘ) beside it that opens the term popup without selecting the card, and the label gets the English name: "בהאמוט (Bahamut)". **Do not type the English in parentheses in the label** (`### חייל (Soldier)`): it would show twice. An unknown term id is a mistake. A name-only term (no blurb, image or link) adds only the English, with no info button.
@@ -111,7 +119,7 @@ subtitle: בלי אף אחד
 
 שום דבר לא נשמר. `### known` הוא "מה כולם יודעים", `### secret` הוא "🤫 מה רק אתה יודע": רק השחקן שבחר בדמות (וה-DM) מקבלים אותו. כל פריט הוא `- **כותרת** טקסט`; הכותרת לא חובה.
 
-Nothing is saved. `### known` is what everyone knows; `### secret` reaches only the player who picked this character (and the DM). Each item is `- **title** text`; the title is optional.
+Nothing is saved. An info step needs a `### known` or a `### secret` section (or both). `### known` is what everyone knows; `### secret` reaches only the player who picked this character (and the DM). Each item is `- **title** text`; the title is optional.
 
 ```markdown
 ## info: lore

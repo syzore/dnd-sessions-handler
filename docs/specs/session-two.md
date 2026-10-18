@@ -21,15 +21,7 @@ A new tool at `/session-two/<CODE>`, built on the Session One step engine and lo
 
 ## Vocabulary
 
-| Term | Meaning | Avoid |
-| --- | --- | --- |
-| **Subclass** (תת-מקצוע) | The level-3 specialisation of a class: a paladin oath, barbarian path, cleric domain, rogue subclass or wizard school. Only the 2024 PHB four per class are offered. | "archetype" (2014 wording), "specialization" |
-| **Carried answer** | A Session One answer that Session Two uses: the answer that the Session One player of the *same character* in the *same group* gave. | "imported", "migrated" (nothing is copied) |
-| **Background override** | The `background:` front-matter line in a Session Two character file. Set by Aviv. It beats every answer. | "default background" |
-| **Effective answer** | The answer Session Two acts on for a step: override, else carried answer, else the Session Two answer (D6). | |
-| **Details step** | The one follow-up step about the background (`details_<background id>`, or `details_other`). | "specifics" in code and content (Aviv's word, kept only in this paragraph) |
-| **Context line** | A read-only line above a step's options that shows an earlier answer (`context:`). | "hint" (a step `hint` is static text) |
-| **Shared step** | A step in `content/session-two/steps/*.md`. Every character gets it, after its own steps. | "list" (a `lists/` file holds options, not steps) |
+The terms this spec uses (subclass, carried answer, background override, effective answer, details step, context line, shared step) are defined in [`GLOSSARY.md`](../../GLOSSARY.md).
 
 ## Decisions already made (by Aviv or the PM, do not reopen)
 
@@ -55,7 +47,7 @@ Aviv does not review this spec. These are decisions; engineers build to them and
 - **A9. Subclass step keeps the free-text box.** A player can write a non-PHB subclass. The step link goes to the class page on dnd2024.wikidot.com, which lists every subclass. Aviv handles a free-text subclass at the table.
 - **A10. The subclass step comes first, then background, then details.** Subclass is the main decision of the session and does not depend on the background.
 - **A11. Details steps are required.** A choice details step needs a pick or free text. `details_other` is a text step and needs text. Subclass is required. Nothing in Session Two is `optional:`.
-- **A12. Glossary terms added.** 19 subclass terms (`sc_<option id>`, category `class`, in `content/session-two/terms/subclasses.md`); Vilhelm's Evoker reuses the existing `evoker` term. 9 background terms for the 2024 PHB backgrounds no character offers (`bg_artisan`, `bg_entertainer`, `bg_farmer`, `bg_guard`, `bg_guide`, `bg_merchant`, `bg_noble`, `bg_sailor`, `bg_wayfarer`, in `content/session-two/terms/backgrounds-2024.md`). Details options get no terms; they reference existing world terms with `[[id]]`. No `GLOSSARY.md` is created by this work; the vocabulary above goes to `.knowledge-inbox.md` for the librarian.
+- **A12. Glossary terms added.** 19 subclass terms (`sc_<option id>`, category `class`, in `content/session-two/terms/subclasses.md`); Vilhelm's Evoker reuses the existing `evoker` term. 9 background terms for the 2024 PHB backgrounds no character offers (`bg_artisan`, `bg_entertainer`, `bg_farmer`, `bg_guard`, `bg_guide`, `bg_merchant`, `bg_noble`, `bg_sailor`, `bg_wayfarer`, in `content/session-two/terms/backgrounds-2024.md`). Details options get no terms; they reference existing world terms with `[[id]]`. The vocabulary now lives in `GLOSSARY.md`.
 - **A13. Session One content is not edited.** All new terms live in `content/session-two/terms/`. Session One parses and renders byte-for-byte as before.
 - **A14. Lore editing is Session One only.** The browser lore editor (`LORE_EDIT`) and the DM lore compendium do not cover Session Two. Aviv edits `content/session-two/` in his code editor.
 - **A15. Shared step text holds no character secret.** Every player receives every character's non-secret steps (`contentFor`). The draft details and subclass text use only lore that is already public: world.md, `### known` sections, step and option text, term blurbs. A fact that appears only in a `### secret` (Bebby's tent cities, Vilhelm's "heavy artillery") is not used.
