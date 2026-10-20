@@ -3,6 +3,7 @@ import { esc, api, playerId, savedName, adminKey, rememberAdminKey, copyButton }
 import { setTerms, allTerms, richText, richParas, plainText, optionLabel, addEnglishAll } from '/shared/terms.js';
 import { initTermPopup, termInfoButton, stepLinkHtml, CATEGORY_LABELS } from '/shared/term-popup.js';
 import { withInfo, loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
+import { S1_CHOICES as CHOICES, s1Answers } from '/shared/dm-summary.js';
 
 // Characters and lore come from the server (content/session-one/*.md, parsed per request).
 let CHARACTERS = [];
@@ -21,12 +22,6 @@ function screen(html) {
   addEnglishAll($app);
   window.scrollTo(0, 0);
 }
-
-const CHOICES = [
-  { id: 'keep', icon: 'check', label: 'שומר/ת על הדמות' },
-  { id: 'rename', icon: 'pencil', label: 'שומר/ת עליה, אבל משנה לה את השם' },
-  { id: 'switch', icon: 'dice', label: 'לא מתחבר/ת אליה, אחליף אחרי שהפרולוג ייגמר' },
-];
 
 // The DM key gets every secret; a player gets only their own character's.
 async function loadContent(code, key) {
@@ -304,23 +299,10 @@ async function renderDm(code) {
     return screen(`<main class="wrap center"><div class="hero-icon">${icon('lock')}</div><h1 class="q-title">רק ל-DM</h1></main>`);
   }
   const choiceLabel = (id) => CHOICES.find((o) => o.id === id)?.label || '—';
-  const label = (st, v) => plainText(st.options.find((o) => o.id === v)?.label || v);
-  const answerText = (st, a) => {
-    const v = a?.[st.id];
-    if (st.type !== 'choice') return v;
-    const picks = (Array.isArray(v) ? v : v ? [v] : []).map((x) => label(st, x)).join(', ');
-    const other = a?.[`${st.id}_other`]?.trim();
-    return [picks, other && `משהו אחר: ${other}`].filter(Boolean).join(' · ');
-  };
   const rows = data.players
     .map((p) => {
       const c = character(p.character);
-      const steps = (c?.steps || []).filter((s) => s.type !== 'info'); // info steps hold no answer
-      const known = new Set(steps.flatMap((s) => [s.id, `${s.id}_other`]));
-      const answers = [
-        ...steps.map((st) => [plainText(st.title || st.prompt), answerText(st, p.answers)]),
-        ...Object.entries(p.answers || {}).filter(([k]) => !known.has(k)), // answers to steps since removed
-      ];
+      const answers = s1Answers(c, p.answers); // shared with the DM summary page
       return `
         <details class="card dm-player" open>
           <summary>${esc([p.name, c ? `${p.choice === 'rename' && p.newName ? p.newName : c.name} (${c.cls})` : 'עוד לא בחר/ה'].filter(Boolean).join(' · '))} ${!p.done ? '<span class="muted">(באמצע)</span>' : p.choice === 'switch' ? '<span class="muted">(יחליף דמות)</span>' : ''}</summary>
@@ -343,6 +325,7 @@ async function renderDm(code) {
       </section>
       <div class="footer stack">
         <a class="cta ghost" href="${base(code)}/dm/lore?key=${encodeURIComponent(key)}">${icon('eye')}<span>כל הלור והבחירות</span></a>
+        <a class="cta ghost" href="/session-two/${esc(code)}/dm/summary?key=${encodeURIComponent(key)}">${icon('copy')}<span>סיכום כל התשובות (להעתקה)</span></a>
         <a class="cta ghost" href="/session-two/${esc(code)}/dm?key=${encodeURIComponent(key)}">${icon('sword')}<span>לסשן השני</span></a>
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button>
       </div>

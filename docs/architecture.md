@@ -55,6 +55,8 @@ Reference for changing the server, the content loaders or `public/shared/`. Cont
   - The context line (`.context-line`, a `.hint` div) has three lines: question, answer, source note. The question is the target's title, else its prompt, unless `context:` gives one after `|`.
   - `dmRows(character, carriedAnswersMap, answers, { termName, plain })` returns `{ rows: [{ q, a, note }], extras }`. Only the background step is a carry step in the current content, so only it gets a skipped row with a source note. `renderDm` loads content with the DM key (so `bg_` terms arrive) and uses each player's `carried` from `GET /api/s2/:code?key=`.
 
+- `dm-summary.js`: the DM summary page `/session-two/<CODE>/dm/summary` (linked from both DM views). `buildSummary` turns five DM-key reads (`/api/s2/:code`, `/api/s1/:code`, both content routes, `/api/sz/sessions/:code/results`) into one model: Session Zero per respondent by name (its `detail` has no pid, so it cannot be tied to a character), then each character a Session One or Two player holds, with Session One rows (`s1Answers`, which the Session One DM view also uses), Session Two `dmRows`, and the `### secret` of that character's info steps (options carry no secrets). `toMarkdown` / `characterMarkdown` are the Copy text, all through `plainText`. No server route: each read already withholds answers and secrets without the key.
+
 ## Session Two player saves
 
 `save()` in `public/session-two/app.js` chains PUTs in call order, each with a snapshot of the state. The last step is saved once, with `done: true`, by `renderEnd(savePromise)`, which shows the saved text only on success and a retry button on failure. Picking a different character clears answers and `done`, on the client and in the PUT.

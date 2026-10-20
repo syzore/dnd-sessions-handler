@@ -7,6 +7,7 @@ import { setTerms, termOf, richText, richParas, plainText, optionLabel, addEngli
 import { initTermPopup, stepLinkHtml } from '/shared/term-popup.js';
 import { withInfo, loreHtml, topbar, pickListHtml, stepScreenHtml, wireStep } from '/shared/step-screen.js';
 import { visibleSteps, visibleOptions, screenAnswers, commitScreenAnswers, contextLine, dmRows } from '/shared/session-two-flow.js';
+import { buildSummary, toMarkdown, characterMarkdown, NO_ANSWERS } from '/shared/dm-summary.js';
 
 let CHARACTERS = [];
 let INTRO = null;
@@ -54,6 +55,7 @@ async function route() {
     return renderContentError(e);
   }
   if (dm && parts[3] === 'lore') return renderLore(code);
+  if (dm && parts[3] === 'summary') return renderSummary(code);
   return dm ? renderDm(code) : start(code);
 }
 
@@ -155,6 +157,7 @@ async function renderDm(code) {
       </section>
       <div class="footer stack">
         <a class="cta ghost" href="${base(code)}/dm/lore?key=${encodeURIComponent(key || '')}">${icon('eye')}<span>כל הלור והבחירות</span></a>
+        <a class="cta ghost" href="${base(code)}/dm/summary?key=${encodeURIComponent(key || '')}">${icon('copy')}<span>סיכום כל התשובות (להעתקה)</span></a>
         <button class="cta ghost" id="share">${icon('link')}<span>לשתף עם השחקנים</span></button>
       </div>
     </main>`);
@@ -279,6 +282,124 @@ async function renderLore(code) {
       </section>
       <div class="footer stack"><a class="cta ghost" href="${base(code)}/dm?key=${encodeURIComponent(key || '')}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a></div>
     </main>`);
+}
+
+// ---------------------------------------------------------------- DM summary (read-only, copyable)
+// Every answer in Session Zero, One and Two, per held character, with that character's secrets, and a
+// Copy all button that puts the same as Markdown on the clipboard (for the DM's notes). The model and
+// the Markdown come from /shared/dm-summary.js. Gated like the compendium: the page renders only when
+// /api/s2/:code confirms isAdmin, and every route it reads returns answers and secrets only for the key.
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {}
+  // No clipboard API (plain http, old browser) or it refused: the old selection route.
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+  document.body.append(ta);
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {}
+  ta.remove();
+  return ok;
+}
+
+// A copy button: "הועתק!" for a moment on success, a message in `msg` when both routes fail.
+function wireCopy(btn, msg, text) {
+  const idle = btn.innerHTML;
+  btn.onclick = async () => {
+    msg.textContent = '';
+    if (await copyText(text())) {
+      btn.classList.add('done');
+      btn.querySelector('span').textContent = 'הועתק!';
+      setTimeout(() => {
+        btn.classList.remove('done');
+        btn.innerHTML = idle;
+      }, 2500);
+    } else msg.textContent = 'ההעתקה לא הצליחה. אפשר לסמן את הטקסט בעמוד ולהעתיק ידנית.';
+  };
+}
+
+async function renderSummary(code) {
+  const key = adminKey(code);
+  const k = encodeURIComponent(key || '');
+  let data;
+  try {
+    data = await api('GET', `/api/s2/${code}${key ? `?key=${k}` : ''}`);
+  } catch {
+    return renderNotFound();
+  }
+  if (!data.isAdmin) return lockScreen();
+  let s1, s1Content, s0;
+  try {
+    [s1, s1Content, s0] = await Promise.all([
+      api('GET', `/api/s1/${code}?key=${k}`),
+      api('GET', `/api/s1/content?${new URLSearchParams({ code, key })}`),
+      api('GET', `/api/sz/sessions/${code}/results?key=${k}`),
+    ]);
+  } catch (e) {
+    return renderContentError(e);
+  }
+  const sum = buildSummary({
+    title: data.title,
+    s0: s0.detail || [],
+    s1: { characters: s1Content.characters, players: s1.players || [] },
+    s2: { characters: CHARACTERS, players: data.players || [] },
+  });
+  const line = (r) => `<div><dt>${esc(r.q)}</dt><dd>${esc(r.a) || '—'}${r.note ? ` <span class="muted">${esc(r.note)}</span>` : ''}</dd></div>`;
+  const answersHtml = (s) => (s.empty ? `<p class="muted">${NO_ANSWERS}</p>` : `<dl class="dm-dl">${s.rows.map(line).join('')}</dl>`);
+  const secretHtml = (c, st) => `
+    <div class="kicker">${badge('🔒 סוד')} ${richText(st.title || st.prompt || '')}</div>
+    ${loreHtml({ ...st, known: null, image: null }, `🤫 הסודות של ${c.name}`)}`;
+  const sessionHtml = (c, s) => `
+    <section class="lore-step" data-term-scope>
+      <h3 class="q-title small">${esc(s.label)}${s.player ? ` <span class="muted">· ${esc(s.player)}</span>` : ''}${!s.empty && !s.done ? ' <span class="muted">(באמצע)</span>' : ''}</h3>
+      ${answersHtml(s)}
+      ${s.secrets.map((st) => secretHtml(c, st)).join('')}
+    </section>`;
+  const chars = sum.characters
+    .map((c, i) => `
+      <details class="card dm-player" open>
+        <summary>${esc(c.name)} (${esc(c.cls)})</summary>
+        ${c.sessions.map((s) => sessionHtml(c, s)).join('')}
+        <button class="chip copy-one" data-i="${i}">${icon('copy')}<span>העתקת ${esc(c.name)}</span></button>
+      </details>`)
+    .join('');
+  const s0Html = sum.s0
+    .map((p) => `
+      <section class="lore-step">
+        <h3 class="q-title small">${esc(p.name)}${!p.empty && !p.done ? ' <span class="muted">(באמצע)</span>' : ''}</h3>
+        ${answersHtml(p)}
+      </section>`)
+    .join('');
+  screen(`
+    <main class="wrap results">
+      <div class="kicker">${esc(data.title)}</div>
+      <h1 class="q-title">סיכום כל התשובות</h1>
+      <p class="hint">סשן אפס, ראשון ושני, לכל דמות, עם הסודות שלה. "העתקת הכל" מעתיק את העמוד כטקסט Markdown.</p>
+      <button class="cta" id="copy-all">${icon('copy')}<span>העתקת הכל</span></button>
+      <p class="err" id="copy-msg" role="status"></p>
+      <section class="dm">
+        <h2>${icon('eye')} רק ל-DM</h2>
+        <details class="card dm-player" open>
+          <summary>סשן אפס (לפי שחקן/ית)</summary>
+          ${s0Html || `<p class="muted">${NO_ANSWERS}</p>`}
+        </details>
+        ${chars || '<p class="muted">עוד אין שחקנים</p>'}
+      </section>
+      <div class="footer stack">
+        <a class="cta ghost" href="${base(code)}/dm?key=${k}">${icon('chevR')}<span>חזרה לתצוגת ה-DM</span></a>
+        <a class="cta ghost" href="/session-one/${esc(code)}/dm?key=${k}">${icon('chevR')}<span>לתצוגת ה-DM של הסשן הראשון</span></a>
+      </div>
+    </main>`);
+  const msg = document.getElementById('copy-msg');
+  wireCopy(document.getElementById('copy-all'), msg, () => toMarkdown(sum));
+  document.querySelectorAll('.copy-one').forEach((btn) => wireCopy(btn, msg, () => characterMarkdown(sum.characters[btn.dataset.i])));
 }
 
 // ---------------------------------------------------------------- player flow
